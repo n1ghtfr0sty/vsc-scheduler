@@ -1,0 +1,12 @@
+# Action Items
+- login
+    - [ ] email should not be case sensative
+
+- Schedule page 
+    - [ ] print schedule should produce a cleaner format on print.  It looks like it is printing the web page
+- Dashboard page
+    - [x] The calender should show within the date box, game information.
+        - specifically the month should show a list sorted by start time
+        - the weekly should show them within the time they exist for a better visual representation
+        - selecting the game should  take to you to see/edit the game details
+    - [ ] the weekly view only shows the current week

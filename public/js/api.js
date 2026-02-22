@@ -10,11 +10,15 @@ const API = {
       headers['Authorization'] = `Bearer ${token}`;
     }
 
+    console.log('API Request:', endpoint, 'Token:', token ? 'yes' : 'no');
+
     const response = await fetch(endpoint, {
       ...options,
       headers,
       credentials: 'include'
     });
+
+    console.log('API Response:', endpoint, response.status);
 
     const contentType = response.headers.get('content-type');
     if (!contentType || !contentType.includes('application/json')) {

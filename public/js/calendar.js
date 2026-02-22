@@ -38,8 +38,23 @@ class Calendar {
     this.render();
   }
   
+  previousWeek() {
+    this.currentDate.setDate(this.currentDate.getDate() - 7);
+    this.render();
+  }
+  
+  getWeekStart(date) {
+    const d = new Date(date);
+    d.setDate(d.getDate() - d.getDay());
+    return d;
+  }
+  
   nextMonth() {
-    this.currentDate.setMonth(this.currentDate.getMonth() + 1);
+    if (this.view === 'month') {
+      this.currentDate.setMonth(this.currentDate.getMonth() + 1);
+    } else {
+      this.currentDate.setDate(this.currentDate.getDate() + 7);
+    }
     this.render();
   }
   
@@ -80,22 +95,32 @@ class Calendar {
     const year = this.currentDate.getFullYear();
     const month = this.currentDate.getMonth();
     
+    let title = '';
+    if (this.view === 'month') {
+      title = `${this.monthNames[month]} ${year}`;
+    } else {
+      const weekStart = this.getWeekStart(this.currentDate);
+      const weekEnd = new Date(weekStart);
+      weekEnd.setDate(weekEnd.getDate() + 6);
+      title = `${this.monthNames[weekStart.getMonth()]} ${weekStart.getDate()} - ${this.monthNames[weekEnd.getMonth()]} ${weekEnd.getDate()}, ${weekEnd.getFullYear()}`;
+    }
+    
     const firstDay = new Date(year, month, 1);
     const lastDay = new Date(year, month + 1, 0);
     const startDate = new Date(firstDay);
     startDate.setDate(startDate.getDate() - firstDay.getDay());
     
+    const navLabel = this.view === 'month' ? 'Month' : 'Week';
+    
     let html = `
       <div class="calendar-container">
         <div class="calendar-header">
           <div class="calendar-nav">
-            <button onclick="calendar.previousYear()" title="Previous Year">&laquo;&laquo;</button>
-            <button onclick="calendar.previousMonth()" title="Previous Month">&laquo;</button>
+            <button onclick="calendar.previous${navLabel}()" title="Previous ${navLabel}">&laquo;</button>
             <button class="today-btn" onclick="calendar.goToToday()">Today</button>
-            <button onclick="calendar.nextMonth()" title="Next Month">&raquo;</button>
-            <button onclick="calendar.nextYear()" title="Next Year">&raquo;&raquo;</button>
+            <button onclick="calendar.next${navLabel}()" title="Next ${navLabel}">&raquo;</button>
           </div>
-          <h2>${this.monthNames[month]} ${year}</h2>
+          <h2>${title}</h2>
           <div class="calendar-view-toggle">
             <button class="${this.view === 'month' ? 'active' : ''}" onclick="calendar.setView('month')">Month</button>
             <button class="${this.view === 'week' ? 'active' : ''}" onclick="calendar.setView('week')">Week</button>
@@ -181,9 +206,7 @@ class Calendar {
   }
   
   renderWeekView() {
-    const today = new Date();
-    const startOfWeek = new Date(today);
-    startOfWeek.setDate(today.getDate() - today.getDay());
+    const startOfWeek = this.getWeekStart(this.currentDate);
     
     let html = '<div class="calendar-grid">';
     
