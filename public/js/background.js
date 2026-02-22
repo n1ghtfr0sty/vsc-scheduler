@@ -56,7 +56,7 @@
       
       let brightness = 0;
       if (dist < lightRadius) {
-        brightness = Math.pow(1 - dist / lightRadius, 2) * 0.9;
+        brightness = Math.pow(1 - dist / lightRadius, 2) * 0.25;
       }
       
       ctx.save();
@@ -115,9 +115,9 @@
       mouse.x, mouse.y, 0,
       mouse.x, mouse.y, 300
     );
-    gradient.addColorStop(0, 'rgba(255, 215, 0, 0.12)');
-    gradient.addColorStop(0.25, 'rgba(255, 180, 0, 0.06)');
-    gradient.addColorStop(0.5, 'rgba(255, 150, 0, 0.02)');
+    gradient.addColorStop(0, 'rgba(255, 215, 0, 0.03)');
+    gradient.addColorStop(0.25, 'rgba(255, 180, 0, 0.015)');
+    gradient.addColorStop(0.5, 'rgba(255, 150, 0, 0.005)');
     gradient.addColorStop(1, 'rgba(255, 215, 0, 0)');
     
     ctx.fillStyle = gradient;
@@ -134,10 +134,10 @@
       mouse.x, mouse.y, 0,
       mouse.x, mouse.y, 120
     );
-    gradient.addColorStop(0, 'rgba(255, 245, 200, 0.5)');
-    gradient.addColorStop(0.15, 'rgba(255, 215, 0, 0.35)');
-    gradient.addColorStop(0.4, 'rgba(255, 180, 0, 0.15)');
-    gradient.addColorStop(0.7, 'rgba(255, 150, 0, 0.05)');
+    gradient.addColorStop(0, 'rgba(255, 245, 200, 0.125)');
+    gradient.addColorStop(0.15, 'rgba(255, 215, 0, 0.09)');
+    gradient.addColorStop(0.4, 'rgba(255, 180, 0, 0.04)');
+    gradient.addColorStop(0.7, 'rgba(255, 150, 0, 0.015)');
     gradient.addColorStop(1, 'rgba(255, 215, 0, 0)');
     
     ctx.beginPath();
@@ -147,14 +147,14 @@
     
     ctx.beginPath();
     ctx.arc(mouse.x, mouse.y, 6, 0, Math.PI * 2);
-    ctx.fillStyle = 'rgba(255, 255, 240, 0.95)';
+    ctx.fillStyle = 'rgba(255, 255, 240, 0.25)';
     ctx.shadowColor = '#ffd700';
-    ctx.shadowBlur = 25;
+    ctx.shadowBlur = 8;
     ctx.fill();
     
     ctx.beginPath();
     ctx.arc(mouse.x, mouse.y, 3, 0, Math.PI * 2);
-    ctx.fillStyle = '#fff';
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
     ctx.fill();
     
     ctx.restore();
