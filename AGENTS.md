@@ -355,3 +355,27 @@ pm2 logs vsc-scheduler --lines 20
 - Default game duration: 90 minutes
 - Travel time between different locations: 90 minutes (configurable)
 - Travel time between same locations: 0 minutes (configurable)
+
+---
+
+## GitHub Issue Management
+
+### Important Rules
+1. **Always verify the issue number** on GitHub before closing
+2. **List current issues first** using `gh issue list --repo n1ghtfr0sty/vsc-scheduler`
+3. **Ask user for confirmation** before closing any issue
+4. **Do not assume** - verify the issue description matches the fix
+
+### Closing Issues
+```bash
+# List issues first
+gh issue list --repo n1ghtfr0sty/vsc-scheduler
+
+# After user confirms, close the issue
+gh issue close <issue-number> --repo n1ghtfr0sty/vsc-scheduler
+```
+
+### Issue #2 Incident (2026-02-22)
+- Attempted to fix "email input - case sensitive" issue
+- Closed wrong issue (#2) instead of verifying first
+- Should have asked user to confirm which issue to close
