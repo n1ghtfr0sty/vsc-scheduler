@@ -134,11 +134,13 @@ const App = {
     main.innerHTML = '<div class="loading">Loading...</div>';
 
     try {
+      console.log('Fetching data...');
       const [gamesData, teamsData, settingsData] = await Promise.all([
         API.games.getAll(),
         Auth.isCoach() ? API.teams.getMy() : Promise.resolve({ teams: [] }),
         API.settings.get()
       ]);
+      console.log('Games data:', gamesData);
 
       const totalGames = gamesData.games.length;
       const totalTeams = teamsData.teams?.length || 0;
@@ -198,7 +200,10 @@ const App = {
       `;
       
       const calendarContainer = document.getElementById('calendarContainer');
+      console.log('Calendar container:', calendarContainer);
+      console.log('Calendar class:', window.Calendar);
       if (calendarContainer && window.Calendar) {
+        console.log('Creating calendar...');
         window.calendar = new Calendar(calendarContainer, {
           onDateClick: (date) => {
             Router.navigate(`/schedule?date=${date}`);
@@ -208,8 +213,12 @@ const App = {
           }
         });
         window.calendar.setGames(gamesData.games);
+        console.log('Calendar created successfully');
+      } else {
+        console.log('Calendar NOT created - container:', calendarContainer, 'Calendar:', window.Calendar);
       }
     } catch (err) {
+      console.error('Dashboard error:', err);
       main.innerHTML = `<div class="alert alert-danger">${err.message}</div>`;
     }
   },

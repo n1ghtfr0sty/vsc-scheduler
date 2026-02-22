@@ -16,6 +16,12 @@ const API = {
       credentials: 'include'
     });
 
+    const contentType = response.headers.get('content-type');
+    if (!contentType || !contentType.includes('application/json')) {
+      console.error('Non-JSON response:', response.status, response.statusText);
+      throw new Error('Authentication required. Please log in again.');
+    }
+
     const data = await response.json();
 
     if (!response.ok) {
