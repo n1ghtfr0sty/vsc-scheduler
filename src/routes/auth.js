@@ -13,12 +13,13 @@ router.post('/register', (req, res) => {
       return res.status(400).json({ error: 'Email, password, and name are required' });
     }
 
+    const emailLower = email.toLowerCase();
     const validRole = role || 'family';
     if (!['admin', 'coach', 'family'].includes(validRole)) {
       return res.status(400).json({ error: 'Invalid role' });
     }
 
-    const existingUser = db.prepare('SELECT id FROM users WHERE email = ?').get(email);
+    const existingUser = db.prepare('SELECT id FROM users WHERE LOWER(email) = ?').get(emailLower);
     if (existingUser) {
       return res.status(400).json({ error: 'Email already registered' });
     }
@@ -26,7 +27,7 @@ router.post('/register', (req, res) => {
     const passwordHash = bcrypt.hashSync(password, 10);
     const result = db.prepare(
       'INSERT INTO users (email, password_hash, role, name, phone) VALUES (?, ?, ?, ?, ?)'
-    ).run(email, passwordHash, validRole, name, phone || null);
+    ).run(emailLower, passwordHash, validRole, name, phone || null);
 
     if (validRole === 'family') {
       db.prepare('INSERT INTO families (user_id, name) VALUES (?, ?)').run(result.lastInsertRowid, name);
@@ -38,7 +39,7 @@ router.post('/register', (req, res) => {
     res.json({ 
       user: { 
         id: result.lastInsertRowid, 
-        email, 
+        email: emailLower, 
         name, 
         role: validRole 
       } 
@@ -57,7 +58,8 @@ router.post('/login', (req, res) => {
       return res.status(400).json({ error: 'Email and password are required' });
     }
 
-    const user = db.prepare('SELECT * FROM users WHERE email = ?').get(email);
+    const emailLower = email.toLowerCase();
+    const user = db.prepare('SELECT * FROM users WHERE LOWER(email) = ?').get(emailLower);
     if (!user) {
       return res.status(401).json({ error: 'Invalid credentials' });
     }

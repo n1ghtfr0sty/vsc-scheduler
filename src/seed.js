@@ -115,6 +115,9 @@ async function main() {
 
   console.log('Seeding data...');
 
+  // Normalize existing emails to lowercase
+  db.exec(`UPDATE users SET email = LOWER(email)`);
+
   const passwordHash = bcrypt.hashSync('password123', 10);
 
   // Admin user
