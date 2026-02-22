@@ -379,3 +379,31 @@ gh issue close <issue-number> --repo n1ghtfr0sty/vsc-scheduler
 - Attempted to fix "email input - case sensitive" issue
 - Closed wrong issue (#2) instead of verifying first
 - Should have asked user to confirm which issue to close
+
+---
+
+## Development Logging
+
+### OpenCode Log (`opencode/YYYY-MM-DD.md`)
+Update this file as changes are made during development. Include:
+- GitHub commit references (full hash)
+- Specific files changed/added/removed
+- Detailed description of each change
+- Run after each session or significant change
+
+### History Log (`History/YYYY-MM-DD Title.md`)
+Create for each development session. Include:
+- Date and duration
+- Summary of what was accomplished
+- What went well / what went wrong
+- Full list of files changed
+- GitHub commit history for the session
+- Open issues status
+- Suggestions for next steps
+
+### Commits
+Always include meaningful commit messages. Reference issues where applicable:
+```bash
+git commit -m "Fix: Make email login case-insensitive"
+git commit -m "Add custom calendar component to dashboard"
+```
