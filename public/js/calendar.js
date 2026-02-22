@@ -149,7 +149,7 @@ class Calendar {
       
       html += `
         <div class="calendar-day ${isToday ? 'today' : ''} ${!isCurrentMonth ? 'other-month' : ''}" 
-             onclick="calendar.onDateClick('${this.formatDate(current)}')">
+             onclick="window.calendar && window.calendar.onDateClick('${this.formatDate(current)}')">
           <div class="calendar-day-number">${current.getDate()}</div>
       `;
       
@@ -160,14 +160,14 @@ class Calendar {
         const eventClass = hasConflict ? 'danger' : (isHome ? 'gold' : '');
         html += `
           <div class="calendar-event ${eventClass}" 
-               onclick="event.stopPropagation(); calendar.onEventClick(${game.id})">
+               onclick="event.stopPropagation(); window.calendar && window.calendar.onEventClick(${game.id})">
             ${game.start_time} ${game.team_name}
           </div>
         `;
       });
       
       if (games.length > 3) {
-        html += `<div class="calendar-more" onclick="event.stopPropagation(); calendar.onDateClick('${this.formatDate(current)}')">+${games.length - 3} more</div>`;
+        html += `<div class="calendar-more" onclick="event.stopPropagation(); window.calendar && window.calendar.onDateClick('${this.formatDate(current)}')">+${games.length - 3} more</div>`;
       }
       
       html += '</div>';
@@ -196,7 +196,7 @@ class Calendar {
       html += `
         <div class="calendar-day ${isToday ? 'today' : ''}" 
              style="min-height: 200px;"
-             onclick="calendar.onDateClick('${this.formatDate(current)}')">
+             onclick="window.calendar && window.calendar.onDateClick('${this.formatDate(current)}')">
           <div class="calendar-day-header" style="padding: 0.25rem;">${day}</div>
           <div class="calendar-day-number">${current.getDate()}</div>
       `;
@@ -207,7 +207,7 @@ class Calendar {
         const eventClass = hasConflict ? 'danger' : (isHome ? 'gold' : '');
         html += `
           <div class="calendar-event ${eventClass}" 
-               onclick="event.stopPropagation(); calendar.onEventClick(${game.id})">
+               onclick="event.stopPropagation(); window.calendar.onEventClick(${game.id})">
             ${game.start_time} - ${game.team_name}
           </div>
         `;

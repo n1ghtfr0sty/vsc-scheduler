@@ -198,15 +198,17 @@ const App = {
       `;
       
       const calendarContainer = document.getElementById('calendarContainer');
-      window.calendar = new Calendar(calendarContainer, {
-        onDateClick: (date) => {
-          Router.navigate(`/schedule?date=${date}`);
-        },
-        onEventClick: (gameId) => {
-          Router.navigate(`/games/${gameId}`);
-        }
-      });
-      window.calendar.setGames(gamesData.games);
+      if (calendarContainer && window.Calendar) {
+        window.calendar = new Calendar(calendarContainer, {
+          onDateClick: (date) => {
+            Router.navigate(`/schedule?date=${date}`);
+          },
+          onEventClick: (gameId) => {
+            Router.navigate(`/games/${gameId}`);
+          }
+        });
+        window.calendar.setGames(gamesData.games);
+      }
     } catch (err) {
       main.innerHTML = `<div class="alert alert-danger">${err.message}</div>`;
     }
