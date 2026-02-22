@@ -9,4 +9,4 @@
         - specifically the month should show a list sorted by start time
         - the weekly should show them within the time they exist for a better visual representation
         - selecting the game should  take to you to see/edit the game details
-    - [ ] the weekly view only shows the current week
+    - [x] the weekly view only shows the current week
