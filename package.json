@@ -1,0 +1,22 @@
+{
+  "name": "vsc-scheduler",
+  "version": "1.0.0",
+  "description": "Vikings Soccer Club Game Scheduler",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "node src/index.js",
+    "seed": "node src/seed.js",
+    "stop": "taskkill /F /IM node.exe /T 2>nul || echo No server running"
+  },
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "sql.js": "^1.10.3",
+    "dotenv": "^16.4.1",
+    "express": "^4.18.2",
+    "express-session": "^1.18.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
