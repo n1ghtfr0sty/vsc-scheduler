@@ -146,6 +146,9 @@ const App = {
 
       main.innerHTML = `
         <h1>Dashboard</h1>
+        
+        <div id="calendarContainer"></div>
+        
         <div class="dashboard-grid">
           <div class="stat-card">
             <h3>Total Games</h3>
@@ -193,6 +196,17 @@ const App = {
           </div>
         ` : ''}
       `;
+      
+      const calendarContainer = document.getElementById('calendarContainer');
+      window.calendar = new Calendar(calendarContainer, {
+        onDateClick: (date) => {
+          Router.navigate(`/schedule?date=${date}`);
+        },
+        onEventClick: (gameId) => {
+          Router.navigate(`/games/${gameId}`);
+        }
+      });
+      window.calendar.setGames(gamesData.games);
     } catch (err) {
       main.innerHTML = `<div class="alert alert-danger">${err.message}</div>`;
     }
