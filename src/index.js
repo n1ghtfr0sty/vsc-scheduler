@@ -26,6 +26,7 @@ app.use(session({
 app.use(express.static(path.join(__dirname, '../public')));
 
 const authRoutes = require('./routes/auth');
+const usersRoutes = require('./routes/users');
 const familiesRoutes = require('./routes/families');
 const playersRoutes = require('./routes/players');
 const teamsRoutes = require('./routes/teams');
@@ -36,6 +37,7 @@ const gamesRoutes = require('./routes/games');
 const settingsRoutes = require('./routes/settings');
 
 app.use('/api/auth', authRoutes);
+app.use('/api/users', usersRoutes);
 app.use('/api/families', familiesRoutes);
 app.use('/api/players', playersRoutes);
 app.use('/api/teams', teamsRoutes);

@@ -5,19 +5,33 @@ const { requireAuth } = require('../middleware/auth');
 
 const router = express.Router();
 
+// Build a formatted permissions object for a given user.
+// Returns null for admin (admin bypasses all checks on the frontend via can()).
+function getUserPermissions(userId, role) {
+  if (role === 'admin') return null;
+
+  const rows = db.prepare('SELECT * FROM user_permissions WHERE user_id = ?').all(userId);
+  const permissions = {};
+  rows.forEach(row => {
+    permissions[row.resource] = {
+      view:   !!row.can_view,
+      create: !!row.can_create,
+      edit:   !!row.can_edit,
+      delete: !!row.can_delete
+    };
+  });
+  return permissions;
+}
+
 router.post('/register', (req, res) => {
   try {
-    const { email, password, name, phone, role } = req.body;
-    
+    const { email, password, name, phone } = req.body;
+
     if (!email || !password || !name) {
       return res.status(400).json({ error: 'Email, password, and name are required' });
     }
 
     const emailLower = email.toLowerCase();
-    const validRole = role || 'family';
-    if (!['admin', 'coach', 'family'].includes(validRole)) {
-      return res.status(400).json({ error: 'Invalid role' });
-    }
 
     const existingUser = db.prepare('SELECT id FROM users WHERE LOWER(email) = ?').get(emailLower);
     if (existingUser) {
@@ -25,24 +39,23 @@ router.post('/register', (req, res) => {
     }
 
     const passwordHash = bcrypt.hashSync(password, 10);
+
+    // All new registrations start as 'pending' — an admin must grant a role and permissions
     const result = db.prepare(
       'INSERT INTO users (email, password_hash, role, name, phone) VALUES (?, ?, ?, ?, ?)'
-    ).run(emailLower, passwordHash, validRole, name, phone || null);
-
-    if (validRole === 'family') {
-      db.prepare('INSERT INTO families (user_id, name) VALUES (?, ?)').run(result.lastInsertRowid, name);
-    }
+    ).run(emailLower, passwordHash, 'pending', name, phone || null);
 
     req.session.userId = result.lastInsertRowid;
-    req.session.userRole = validRole;
+    req.session.userRole = 'pending';
 
-    res.json({ 
-      user: { 
-        id: result.lastInsertRowid, 
-        email: emailLower, 
-        name, 
-        role: validRole 
-      } 
+    res.json({
+      user: {
+        id: result.lastInsertRowid,
+        email: emailLower,
+        name,
+        role: 'pending'
+      },
+      permissions: {}
     });
   } catch (err) {
     console.error(err);
@@ -53,7 +66,7 @@ router.post('/register', (req, res) => {
 router.post('/login', (req, res) => {
   try {
     const { email, password } = req.body;
-    
+
     if (!email || !password) {
       return res.status(400).json({ error: 'Email and password are required' });
     }
@@ -72,13 +85,14 @@ router.post('/login', (req, res) => {
     req.session.userId = user.id;
     req.session.userRole = user.role;
 
-    res.json({ 
-      user: { 
-        id: user.id, 
-        email: user.email, 
-        name: user.name, 
-        role: user.role 
-      } 
+    res.json({
+      user: {
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        role: user.role
+      },
+      permissions: getUserPermissions(user.id, user.role)
     });
   } catch (err) {
     console.error(err);
@@ -100,7 +114,10 @@ router.get('/me', requireAuth, (req, res) => {
   if (!user) {
     return res.status(404).json({ error: 'User not found' });
   }
-  res.json({ user });
+  res.json({
+    user,
+    permissions: getUserPermissions(user.id, user.role)
+  });
 });
 
 module.exports = router;
