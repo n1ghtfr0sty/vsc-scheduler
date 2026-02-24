@@ -154,7 +154,7 @@ function calculateEndTime(startTime, duration) { }
 async function getUserById(id) { }
 ```
 
-#### Database Operations (better-sqlite3)
+#### Database Operations (sql.js)
 ```javascript
 // Always use prepared statements with placeholders
 const user = db.prepare('SELECT * FROM users WHERE id = ?').get(userId);
