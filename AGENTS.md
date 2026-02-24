@@ -270,10 +270,6 @@ window.location.hash = '#/path';
 2. Drop existing database: `rm data/vsc.db`
 3. Re-run: `npm run seed`
 
-### Migrations (if needed later)
-- Store in `/src/migrations/`
-- Numbered files: `001_initial_schema.js`
-
 ---
 
 ## Testing
