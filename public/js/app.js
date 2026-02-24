@@ -216,7 +216,7 @@ const App = {
             }
           },
           onEventClick: (gameId) => {
-            Router.navigate(`/games/${gameId}`);
+            this.showGameDetailsModal(gameId);
           }
         });
         window.calendar.setGames(gamesData.games);
@@ -1348,6 +1348,76 @@ const App = {
     document.getElementById('modalTitle').textContent = title;
     document.getElementById('modalBody').innerHTML = content;
     document.getElementById('modal').classList.remove('hidden');
+  },
+
+  async showGameDetailsModal(gameId) {
+    try {
+      const gamesData = await API.games.getAll();
+      const game = gamesData.games.find(g => g.id == gameId);
+      if (!game) {
+        this.showToast('Game not found', 'error');
+        return;
+      }
+
+      const modal = document.getElementById('modal');
+      const isCoach = Auth.isCoach();
+      
+      modal.innerHTML = `
+        <div class="modal-content">
+          <div class="modal-header">
+            <h2>Game Details</h2>
+            <button class="modal-close" onclick="closeModal()">&times;</button>
+          </div>
+          <div class="modal-body">
+            <div class="form-group">
+              <label>Date</label>
+              <p>${game.game_date}</p>
+            </div>
+            <div class="form-group">
+              <label>Time</label>
+              <p>${game.start_time} - ${game.end_time}</p>
+            </div>
+            <div class="form-group">
+              <label>Team</label>
+              <p>${game.team_name}</p>
+            </div>
+            <div class="form-group">
+              <label>Opponent</label>
+              <p>${game.opponent_name}</p>
+            </div>
+            <div class="form-group">
+              <label>Location</label>
+              <p>${game.location || 'TBD'}</p>
+            </div>
+            <div class="form-group">
+              <label>Season</label>
+              <p>${game.season_name || 'N/A'}</p>
+            </div>
+            ${game.notes ? `
+            <div class="form-group">
+              <label>Notes</label>
+              <p>${game.notes}</p>
+            </div>
+            ` : ''}
+            ${game.has_conflict ? `
+            <div class="alert alert-danger">
+              <strong>Conflict:</strong> This game has scheduling conflicts
+            </div>
+            ` : ''}
+          </div>
+          <div class="modal-footer">
+            ${isCoach ? `
+            <button class="btn btn-primary" onclick="closeModal(); Router.navigate('/games/${game.id}/edit')">Edit</button>
+            ` : ''}
+            <button class="btn btn-outline" onclick="closeModal()">Close</button>
+          </div>
+        </div>
+      `;
+      
+      modal.classList.remove('hidden');
+    } catch (err) {
+      this.showToast(err.message, 'error');
+    }
   },
 
   showToast(message, type = 'success') {
