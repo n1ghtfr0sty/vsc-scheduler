@@ -112,7 +112,7 @@ Always verify issue numbers before closing: `gh issue list --repo n1ghtfr0sty/vs
 
 ## Code Conventions
 
-- No comments unless asked (project convention)
+- Comment complex logic so the intent is clear to someone learning the codebase
 - Server-side: CommonJS (`require`/`module.exports`)
 - Frontend: globals on `window`, no modules
 - DB columns/tables: `snake_case`; JS variables: `camelCase`; JS constants: `UPPER_SNAKE_CASE`

@@ -137,8 +137,7 @@ pm2 logs vsc-scheduler --err --lines 50
 ### General Principles
 - Keep files small and focused (single responsibility)
 - Use meaningful variable and function names
-- Comment complex logic, not obvious code
-- No comments unless asked (per project convention)
+- Comment complex logic so the intent is clear to someone learning the codebase
 
 ### JavaScript Style
 
