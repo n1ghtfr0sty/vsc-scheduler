@@ -8,6 +8,7 @@ const App = {
   setupRoutes() {
     Router.route('/', () => this.renderLogin());
     Router.route('/register', () => this.renderRegister());
+    Router.route('/pending', () => this.renderPending());
     Router.route('/dashboard', () => this.renderDashboard());
     Router.route('/schedule', () => this.renderSchedule());
     Router.route('/games', () => this.renderGames());
@@ -24,6 +25,7 @@ const App = {
     Router.route('/families', () => this.renderFamilies());
     Router.route('/coaches', () => this.renderCoaches());
     Router.route('/settings', () => this.renderSettings());
+    Router.route('/users', () => this.renderUsers());
   },
 
   renderLogin() {
@@ -96,14 +98,6 @@ const App = {
               <label>Phone</label>
               <input type="tel" name="phone">
             </div>
-            <div class="form-group">
-              <label>Role</label>
-              <select name="role" required>
-                <option value="family">Family</option>
-                <option value="coach">Coach</option>
-                <option value="admin">Admin</option>
-              </select>
-            </div>
             <button type="submit" class="btn btn-primary">Register</button>
             <p class="switch-auth">Already have an account? <a onclick="Router.navigate('/')">Login</a></p>
           </form>
@@ -119,15 +113,31 @@ const App = {
           formData.get('email'),
           formData.get('password'),
           formData.get('name'),
-          formData.get('phone'),
-          formData.get('role')
+          formData.get('phone')
         );
-        this.showToast('Registration successful', 'success');
-        Router.navigate('/dashboard');
+        this.showToast('Registration successful — your account is pending approval', 'success');
+        Router.navigate('/pending');
       } catch (err) {
         this.showToast(err.message, 'error');
       }
     });
+  },
+
+  renderPending() {
+    const main = document.getElementById('main');
+    main.innerHTML = `
+      <div class="auth-container">
+        <h1>Vikings Soccer Club</h1>
+        <div class="card" style="text-align:center;">
+          <h2>Account Pending Approval</h2>
+          <p style="color:var(--text-muted); margin: 1rem 0;">
+            Your account has been created and is waiting for an administrator to grant access.
+            Please check back later or contact your club administrator.
+          </p>
+          <button class="btn btn-outline" onclick="Auth.logout()">Logout</button>
+        </div>
+      </div>
+    `;
   },
 
   async renderDashboard() {
@@ -140,7 +150,7 @@ const App = {
       console.log('Fetching data...');
       const [gamesData, teamsData, settingsData] = await Promise.all([
         API.games.getAll(),
-        Auth.isCoach() ? API.teams.getMy() : Promise.resolve({ teams: [] }),
+        Auth.can('teams', 'view') ? API.teams.getMy() : Promise.resolve({ teams: [] }),
         API.settings.get()
       ]);
       console.log('Games data:', gamesData);
@@ -193,7 +203,7 @@ const App = {
           ${gamesData.games.length === 0 ? '<p class="empty-state">No games scheduled</p>' : ''}
         </div>
 
-        ${Auth.isCoach() ? `
+        ${Auth.can('games', 'create') ? `
           <div class="card">
             <h2>Quick Actions</h2>
             <button class="btn btn-primary" onclick="Router.navigate('/games/new')">Schedule New Game</button>
@@ -209,7 +219,7 @@ const App = {
         console.log('Creating calendar...');
         window.calendar = new Calendar(calendarContainer, {
           onDateClick: (date) => {
-            if (Auth.isCoach()) {
+            if (Auth.can('games', 'create')) {
               Router.navigate(`/games/new?date=${date}`);
             } else {
               Router.navigate(`/schedule?date=${date}`);
@@ -336,7 +346,7 @@ const App = {
       main.innerHTML = `
         <div class="header-actions">
           <h1>Games</h1>
-          ${Auth.isCoach() ? `<button class="btn btn-primary" onclick="Router.navigate('/games/new')">+ New Game</button>` : ''}
+          ${Auth.can('games', 'create') ? `<button class="btn btn-primary" onclick="Router.navigate('/games/new')">+ New Game</button>` : ''}
         </div>
         <div class="card">
           <table>
@@ -361,10 +371,8 @@ const App = {
                   <td>${game.location || 'TBD'}</td>
                   <td>${game.season_name || 'N/A'}</td>
                   <td class="actions">
-                    ${Auth.isCoach() ? `
-                      <button class="btn btn-outline" onclick="Router.navigate('/games/${game.id}/edit')">Edit</button>
-                      <button class="btn btn-danger" onclick="App.deleteGame(${game.id})">Delete</button>
-                    ` : ''}
+                    ${Auth.can('games', 'edit')   ? `<button class="btn btn-outline" onclick="Router.navigate('/games/${game.id}/edit')">Edit</button>` : ''}
+                    ${Auth.can('games', 'delete') ? `<button class="btn btn-danger" onclick="App.deleteGame(${game.id})">Delete</button>` : ''}
                   </td>
                 </tr>
               `).join('')}
@@ -436,7 +444,11 @@ const App = {
             </div>
             <div class="form-group">
               <label>Location</label>
-              <input type="text" name="location" value="${game?.location || ''}">
+              <select name="location" required>
+                <option value="">Select Location</option>
+                <option value="Home" ${game?.location === 'Home' ? 'selected' : ''}>Home (VSC)</option>
+                <option value="Away" ${game?.location === 'Away' ? 'selected' : ''}>Away (Opponent)</option>
+              </select>
             </div>
             <div class="form-group">
               <label>Date *</label>
@@ -571,7 +583,7 @@ const App = {
       main.innerHTML = `
         <div class="header-actions">
           <h1>Teams</h1>
-          ${Auth.isAdmin() ? `<button class="btn btn-primary" onclick="App.showTeamForm()">+ New Team</button>` : ''}
+          ${Auth.can('teams', 'create') ? `<button class="btn btn-primary" onclick="App.showTeamForm()">+ New Team</button>` : ''}
         </div>
         <div class="card">
           <table>
@@ -591,12 +603,8 @@ const App = {
                   <td>${team.coaches || 'None'}</td>
                   <td class="actions">
                     <button class="btn btn-outline" onclick="Router.navigate('/teams/${team.id}')">View</button>
-                    ${Auth.isCoach() ? `
-                      <button class="btn btn-outline" onclick="App.showTeamForm(${team.id})">Edit</button>
-                    ` : ''}
-                    ${Auth.isAdmin() ? `
-                      <button class="btn btn-danger" onclick="App.deleteTeam(${team.id})">Delete</button>
-                    ` : ''}
+                    ${Auth.can('teams', 'edit')   ? `<button class="btn btn-outline" onclick="App.showTeamForm(${team.id})">Edit</button>` : ''}
+                    ${Auth.can('teams', 'delete') ? `<button class="btn btn-danger" onclick="App.deleteTeam(${team.id})">Delete</button>` : ''}
                   </td>
                 </tr>
               `).join('')}
@@ -661,10 +669,17 @@ const App = {
 
   async showTeamForm(editId = null) {
     let team = null;
+    let currentCoaches = [];
     if (editId) {
       const data = await API.teams.getAll();
       team = data.teams.find(t => t.id == editId);
+      if (team && team.coaches) {
+        currentCoaches = team.coaches.split(',').map(c => c.split(':')[0]);
+      }
     }
+
+    const coachesData = await API.coaches.getAll();
+    const coaches = coachesData.coaches || [];
 
     this.showModal(editId ? 'Edit Team' : 'New Team', `
       <form id="teamForm">
@@ -676,6 +691,15 @@ const App = {
         <div class="form-group">
           <label>Age Group</label>
           <input type="text" name="age_group" value="${team?.age_group || ''}">
+        </div>
+        <div class="form-group">
+          <label>Coaches</label>
+          <select name="coaches" multiple style="height: 120px;">
+            ${coaches.map(c => `
+              <option value="${c.id}" ${currentCoaches.includes(String(c.id)) ? 'selected' : ''}>${c.name}</option>
+            `).join('')}
+          </select>
+          <small style="color: var(--text-muted);">Hold Ctrl/Cmd to select multiple</small>
         </div>
         <button type="submit" class="btn btn-primary">${editId ? 'Update' : 'Create'}</button>
         <button type="button" class="btn btn-outline" onclick="closeModal()">Cancel</button>
@@ -689,10 +713,28 @@ const App = {
         name: formData.get('name'),
         age_group: formData.get('age_group')
       };
+      const selectedCoaches = formData.getAll('coaches').map(Number);
 
       try {
         if (editId) {
           await API.teams.update(editId, data);
+          
+          const currentCoachIds = currentCoaches.map(Number);
+          const toAdd = selectedCoaches.filter(id => !currentCoachIds.includes(id));
+          const toRemove = currentCoachIds.filter(id => !selectedCoaches.includes(id));
+
+          for (const coachId of toAdd) {
+            await API.request(`/api/coaches/${coachId}/teams`, {
+              method: 'POST',
+              body: JSON.stringify({ team_id: parseInt(editId) })
+            });
+          }
+          for (const coachId of toRemove) {
+            await API.request(`/api/coaches/${coachId}/teams/${editId}`, {
+              method: 'DELETE'
+            });
+          }
+          
           this.showToast('Team updated', 'success');
         } else {
           await API.teams.create(data);
@@ -730,7 +772,7 @@ const App = {
       main.innerHTML = `
         <div class="header-actions">
           <h1>Players</h1>
-          ${Auth.isAdmin() ? `<button class="btn btn-primary" onclick="App.showPlayerForm()">+ New Player</button>` : ''}
+          ${Auth.can('players', 'create') ? `<button class="btn btn-primary" onclick="App.showPlayerForm()">+ New Player</button>` : ''}
         </div>
         <div class="card">
           <table>
@@ -751,10 +793,8 @@ const App = {
                   <td>${p.family_name || 'N/A'}</td>
                   <td>${p.teams || 'None'}</td>
                   <td class="actions">
-                    ${Auth.isAdmin() ? `
-                      <button class="btn btn-outline" onclick="App.showPlayerForm(${p.id})">Edit</button>
-                      <button class="btn btn-danger" onclick="App.deletePlayer(${p.id})">Delete</button>
-                    ` : ''}
+                    ${Auth.can('players', 'edit')   ? `<button class="btn btn-outline" onclick="App.showPlayerForm(${p.id})">Edit</button>` : ''}
+                    ${Auth.can('players', 'delete') ? `<button class="btn btn-danger" onclick="App.deletePlayer(${p.id})">Delete</button>` : ''}
                   </td>
                 </tr>
               `).join('')}
@@ -978,7 +1018,7 @@ const App = {
       main.innerHTML = `
         <div class="header-actions">
           <h1>Seasons</h1>
-          ${Auth.isAdmin() ? `<button class="btn btn-primary" onclick="App.showSeasonForm()">+ New Season</button>` : ''}
+          ${Auth.can('seasons', 'create') ? `<button class="btn btn-primary" onclick="App.showSeasonForm()">+ New Season</button>` : ''}
         </div>
         <div class="card">
           <table>
@@ -1001,10 +1041,8 @@ const App = {
                   <td>${s.start_date || 'N/A'}</td>
                   <td>${s.end_date || 'N/A'}</td>
                   <td class="actions">
-                    ${Auth.isAdmin() ? `
-                      <button class="btn btn-outline" onclick="App.showSeasonForm(${s.id})">Edit</button>
-                      <button class="btn btn-danger" onclick="App.deleteSeason(${s.id})">Delete</button>
-                    ` : ''}
+                    ${Auth.can('seasons', 'edit')   ? `<button class="btn btn-outline" onclick="App.showSeasonForm(${s.id})">Edit</button>` : ''}
+                    ${Auth.can('seasons', 'delete') ? `<button class="btn btn-danger" onclick="App.deleteSeason(${s.id})">Delete</button>` : ''}
                   </td>
                 </tr>
               `).join('')}
@@ -1359,62 +1397,167 @@ const App = {
         return;
       }
 
-      const modal = document.getElementById('modal');
-      const isCoach = Auth.isCoach();
-      
-      modal.innerHTML = `
-        <div class="modal-content">
-          <div class="modal-header">
-            <h2>Game Details</h2>
-            <button class="modal-close" onclick="closeModal()">&times;</button>
-          </div>
-          <div class="modal-body">
-            <div class="form-group">
-              <label>Date</label>
-              <p>${game.game_date}</p>
-            </div>
-            <div class="form-group">
-              <label>Time</label>
-              <p>${game.start_time} - ${game.end_time}</p>
-            </div>
-            <div class="form-group">
-              <label>Team</label>
-              <p>${game.team_name}</p>
-            </div>
-            <div class="form-group">
-              <label>Opponent</label>
-              <p>${game.opponent_name}</p>
-            </div>
-            <div class="form-group">
-              <label>Location</label>
-              <p>${game.location || 'TBD'}</p>
-            </div>
-            <div class="form-group">
-              <label>Season</label>
-              <p>${game.season_name || 'N/A'}</p>
-            </div>
-            ${game.notes ? `
-            <div class="form-group">
-              <label>Notes</label>
-              <p>${game.notes}</p>
-            </div>
-            ` : ''}
-            ${game.has_conflict ? `
-            <div class="alert alert-danger">
-              <strong>Conflict:</strong> This game has scheduling conflicts
-            </div>
-            ` : ''}
-          </div>
-          <div class="modal-footer">
-            ${isCoach ? `
-            <button class="btn btn-primary" onclick="closeModal(); Router.navigate('/games/${game.id}/edit')">Edit</button>
-            ` : ''}
-            <button class="btn btn-outline" onclick="closeModal()">Close</button>
-          </div>
+      const canEditGame = Auth.can('games', 'edit');
+      const content = `
+        <div class="form-group">
+          <label>Date</label>
+          <p>${game.game_date}</p>
+        </div>
+        <div class="form-group">
+          <label>Time</label>
+          <p>${game.start_time} - ${game.end_time}</p>
+        </div>
+        <div class="form-group">
+          <label>Team</label>
+          <p>${game.team_name}</p>
+        </div>
+        <div class="form-group">
+          <label>Opponent</label>
+          <p>${game.opponent_name}</p>
+        </div>
+        <div class="form-group">
+          <label>Location</label>
+          <p>${game.location || 'TBD'}</p>
+        </div>
+        <div class="form-group">
+          <label>Season</label>
+          <p>${game.season_name || 'N/A'}</p>
+        </div>
+        ${game.notes ? `
+        <div class="form-group">
+          <label>Notes</label>
+          <p>${game.notes}</p>
+        </div>
+        ` : ''}
+        ${game.has_conflict ? `
+        <div class="alert alert-danger">
+          <strong>Conflict:</strong> This game has scheduling conflicts
+        </div>
+        ` : ''}
+        <div style="margin-top: 1rem;">
+          ${canEditGame ? `<button class="btn btn-primary" onclick="closeModal(); Router.navigate('/games/${game.id}/edit')">Edit</button>` : ''}
+          <button class="btn btn-outline" onclick="closeModal()">Close</button>
         </div>
       `;
       
-      modal.classList.remove('hidden');
+      this.showModal('Game Details', content);
+    } catch (err) {
+      this.showToast(err.message, 'error');
+    }
+  },
+
+  // Admin user management page: lists all users with role editor and permission grid
+  async renderUsers() {
+    if (!Auth.requireAuth()) return;
+    if (!Auth.isAdmin()) { Router.navigate('/dashboard'); return; }
+
+    const main = document.getElementById('main');
+    main.innerHTML = '<div class="loading">Loading...</div>';
+
+    const RESOURCES = ['games', 'players', 'families', 'coaches', 'teams', 'opponents', 'seasons', 'settings', 'users'];
+    const ACTIONS   = ['view', 'create', 'edit', 'delete'];
+    const ROLES     = ['admin', 'coach', 'family', 'pending'];
+
+    try {
+      const { users } = await API.users.getAll();
+
+      // Separate pending users to highlight them at the top
+      const pending = users.filter(u => u.role === 'pending');
+      const active  = users.filter(u => u.role !== 'pending');
+      const sorted  = [...pending, ...active];
+
+      main.innerHTML = `
+        <h1>User Management</h1>
+        ${pending.length > 0 ? `<p class="alert alert-warning">${pending.length} account(s) pending approval</p>` : ''}
+        <div id="usersList"></div>
+      `;
+
+      const list = document.getElementById('usersList');
+
+      sorted.forEach(user => {
+        const card = document.createElement('div');
+        card.className = 'card';
+        card.style.marginBottom = '1.5rem';
+        card.dataset.userId = user.id;
+
+        // Build permission checkbox rows for each resource
+        const permRows = RESOURCES.map(resource => {
+          const perms = user.permissions[resource] || {};
+          const cells = ACTIONS.map(action => `
+            <td style="text-align:center;">
+              <input type="checkbox" data-resource="${resource}" data-action="${action}"
+                ${perms[action] ? 'checked' : ''}
+                ${user.role === 'admin' ? 'disabled title="Admins have all permissions"' : ''}
+                onchange="App.saveUserPermissions(${user.id})">
+            </td>
+          `).join('');
+          return `<tr><td style="padding:4px 8px;text-transform:capitalize;">${resource}</td>${cells}</tr>`;
+        }).join('');
+
+        card.innerHTML = `
+          <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:0.5rem;">
+            <div>
+              <strong>${user.name}</strong>
+              <span style="color:var(--text-muted);margin-left:0.5rem;">${user.email}</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:0.5rem;">
+              <label style="color:var(--text-muted);font-size:0.85rem;">Role:</label>
+              <select data-user-id="${user.id}" onchange="App.saveUserRole(${user.id}, this.value)"
+                style="padding:4px 8px;background:var(--dark-card);color:var(--text);border:1px solid var(--dark-border);border-radius:6px;">
+                ${ROLES.map(r => `<option value="${r}" ${user.role === r ? 'selected' : ''}>${r}</option>`).join('')}
+              </select>
+            </div>
+          </div>
+          <details style="margin-top:1rem;">
+            <summary style="cursor:pointer;color:var(--text-muted);font-size:0.9rem;">Permissions</summary>
+            <table style="margin-top:0.75rem;width:100%;border-collapse:collapse;font-size:0.85rem;">
+              <thead>
+                <tr>
+                  <th style="text-align:left;padding:4px 8px;">Resource</th>
+                  ${ACTIONS.map(a => `<th style="text-align:center;padding:4px 8px;text-transform:capitalize;">${a}</th>`).join('')}
+                </tr>
+              </thead>
+              <tbody>${permRows}</tbody>
+            </table>
+          </details>
+        `;
+
+        list.appendChild(card);
+      });
+
+    } catch (err) {
+      main.innerHTML = `<div class="alert alert-danger">${err.message}</div>`;
+    }
+  },
+
+  // Save an updated role for a user, then refresh their card's permission checkboxes
+  async saveUserRole(userId, role) {
+    try {
+      await API.users.updateRole(userId, role);
+      this.showToast('Role updated', 'success');
+      this.renderUsers();
+    } catch (err) {
+      this.showToast(err.message, 'error');
+    }
+  },
+
+  // Read all permission checkboxes for a user and save them in one call
+  async saveUserPermissions(userId) {
+    const card = document.querySelector(`[data-user-id="${userId}"]`)?.closest('.card')
+               || document.querySelector(`.card[data-user-id="${userId}"]`)
+               || Array.from(document.querySelectorAll('.card')).find(c => c.dataset.userId == userId);
+    if (!card) return;
+
+    const permissions = {};
+    card.querySelectorAll('input[type="checkbox"][data-resource]').forEach(cb => {
+      const { resource, action } = cb.dataset;
+      if (!permissions[resource]) permissions[resource] = {};
+      permissions[resource][action] = cb.checked;
+    });
+
+    try {
+      await API.users.updatePermissions(userId, permissions);
+      this.showToast('Permissions saved', 'success');
     } catch (err) {
       this.showToast(err.message, 'error');
     }

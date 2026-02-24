@@ -36,10 +36,10 @@ const API = {
   },
 
   auth: {
-    async register(email, password, name, phone, role) {
+    async register(email, password, name, phone) {
       return API.request('/api/auth/register', {
         method: 'POST',
-        body: JSON.stringify({ email, password, name, phone, role })
+        body: JSON.stringify({ email, password, name, phone })
       });
     },
     async login(email, password) {
@@ -223,6 +223,24 @@ const API = {
     },
     async delete(id) {
       return API.request(`/api/games/${id}`, { method: 'DELETE' });
+    }
+  },
+
+  users: {
+    async getAll() {
+      return API.request('/api/users');
+    },
+    async updateRole(id, role) {
+      return API.request(`/api/users/${id}/role`, {
+        method: 'PUT',
+        body: JSON.stringify({ role })
+      });
+    },
+    async updatePermissions(id, permissions) {
+      return API.request(`/api/users/${id}/permissions`, {
+        method: 'PUT',
+        body: JSON.stringify({ permissions })
+      });
     }
   },
 
