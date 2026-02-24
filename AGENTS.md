@@ -376,11 +376,10 @@ gh issue close <issue-number> --repo n1ghtfr0sty/vsc-scheduler
 ## Development Logging
 
 ### OpenCode Log (`opencode/YYYY-MM-DD.md`)
-Update this file as changes are made during development. Include:
+Update this file incrementally during development as each change is made. Include:
 - GitHub commit references (full hash)
 - Specific files changed/added/removed
 - Detailed description of each change
-- Run after each session or significant change
 
 ### History Log (`History/YYYY-MM-DD Title.md`)
 Create for each development session. Include:
