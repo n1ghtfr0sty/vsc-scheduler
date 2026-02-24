@@ -11,7 +11,10 @@ const App = {
     Router.route('/dashboard', () => this.renderDashboard());
     Router.route('/schedule', () => this.renderSchedule());
     Router.route('/games', () => this.renderGames());
-    Router.route('/games/new', () => this.renderGameForm());
+    Router.route('/games/new', () => {
+      const params = Router.getParams();
+      this.renderGameForm(null, params.date);
+    });
     Router.route('/games/:id/edit', (params) => this.renderGameForm(params.id));
     Router.route('/teams', () => this.renderTeams());
     Router.route('/teams/:id', (params) => this.renderTeamDetail(params.id));
@@ -206,7 +209,11 @@ const App = {
         console.log('Creating calendar...');
         window.calendar = new Calendar(calendarContainer, {
           onDateClick: (date) => {
-            Router.navigate(`/schedule?date=${date}`);
+            if (Auth.isCoach()) {
+              Router.navigate(`/games/new?date=${date}`);
+            } else {
+              Router.navigate(`/schedule?date=${date}`);
+            }
           },
           onEventClick: (gameId) => {
             Router.navigate(`/games/${gameId}`);
@@ -371,7 +378,7 @@ const App = {
     }
   },
 
-  async renderGameForm(editId = null) {
+  async renderGameForm(editId = null, prefillDate = null) {
     if (!Auth.requireAuth()) return;
 
     const main = document.getElementById('main');
@@ -393,6 +400,7 @@ const App = {
 
       const defaultDuration = parseInt(settingsData.settings.default_game_duration) || 90;
       window._defaultGameDuration = defaultDuration;
+      const gameDate = game?.game_date || prefillDate || '';
 
       main.innerHTML = `
         <h1>${editId ? 'Edit Game' : 'New Game'}</h1>
@@ -432,7 +440,7 @@ const App = {
             </div>
             <div class="form-group">
               <label>Date *</label>
-              <input type="date" name="game_date" value="${game?.game_date || ''}" required>
+              <input type="date" name="game_date" value="${gameDate}" required>
             </div>
             <div class="form-group">
               <label>Start Time *</label>
