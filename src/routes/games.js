@@ -198,7 +198,7 @@ router.post('/', requireAuth, (req, res) => {
     `).run(team_id, opponent_id, location || null, season_id || null, game_date, start_time, calculatedEndTime, notes || null);
 
     res.json({ 
-      game: { id: result.lastInsertRowid, team_id, opponent_id, location, season_id, game_date, start_time, end_time: calculatedEnd_time },
+      game: { id: result.lastInsertRowid, team_id, opponent_id, location, season_id, game_date, start_time, end_time: calculatedEndTime },
       conflicts: conflictResult.conflicts 
     });
   } catch (err) {

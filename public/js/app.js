@@ -392,6 +392,7 @@ const App = {
       }
 
       const defaultDuration = parseInt(settingsData.settings.default_game_duration) || 90;
+      window._defaultGameDuration = defaultDuration;
 
       main.innerHTML = `
         <h1>${editId ? 'Edit Game' : 'New Game'}</h1>
@@ -435,7 +436,7 @@ const App = {
             </div>
             <div class="form-group">
               <label>Start Time *</label>
-              <input type="time" name="start_time" value="${game?.start_time || ''}" required onchange="App.calculateEndTime()">
+              <input type="time" name="start_time" value="${game?.start_time || ''}" required>
             </div>
             <div class="form-group">
               <label>End Time *</label>
@@ -451,6 +452,10 @@ const App = {
           </form>
         </div>
       `;
+
+      const startTimeInput = document.querySelector('[name="start_time"]');
+      const endTimeInput = document.querySelector('[name="end_time"]');
+      startTimeInput.addEventListener('change', () => App.calculateEndTime());
 
       document.getElementById('gameForm').addEventListener('submit', async (e) => {
         e.preventDefault();
@@ -523,10 +528,14 @@ const App = {
   calculateEndTime() {
     const startInput = document.querySelector('[name="start_time"]');
     const endInput = document.querySelector('[name="end_time"]');
-    if (startInput.value && !endInput.value) {
-      const [hours, minutes] = startInput.value.split(':');
-      const endHours = parseInt(hours) + 1;
-      endInput.value = `${String(endHours).padStart(2, '0')}:${minutes}`;
+    if (startInput.value) {
+      const [hours, minutes] = startInput.value.split(':').map(Number);
+      const duration = window._defaultGameDuration || 90;
+      const totalStartMinutes = hours * 60 + minutes;
+      const totalEndMinutes = totalStartMinutes + duration;
+      const endHours = Math.floor(totalEndMinutes / 60) % 24;
+      const endMinutes = totalEndMinutes % 60;
+      endInput.value = `${String(endHours).padStart(2, '0')}:${String(endMinutes).padStart(2, '0')}`;
     }
   },
 
