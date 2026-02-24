@@ -374,10 +374,6 @@ gh issue list --repo n1ghtfr0sty/vsc-scheduler
 gh issue close <issue-number> --repo n1ghtfr0sty/vsc-scheduler
 ```
 
-### Issue #2 Incident (2026-02-22)
-- Attempted to fix "email input - case sensitive" issue
-- Closed wrong issue (#2) instead of verifying first
-- Should have asked user to confirm which issue to close
 
 ---
 
