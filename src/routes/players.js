@@ -1,10 +1,10 @@
 const express = require('express');
 const db = require('../db');
-const { requireAuth, requireRole } = require('../middleware/auth');
+const { requireAuth, requirePermission } = require('../middleware/auth');
 
 const router = express.Router();
 
-router.get('/', requireAuth, (req, res) => {
+router.get('/', requirePermission('players', 'view'), (req, res) => {
   try {
     const players = db.prepare(`
       SELECT p.*, f.name as family_name, f.id as family_id,
@@ -23,7 +23,7 @@ router.get('/', requireAuth, (req, res) => {
   }
 });
 
-router.post('/', requireAuth, (req, res) => {
+router.post('/', requirePermission('players', 'create'), (req, res) => {
   try {
     const { name, birth_date, family_id } = req.body;
 
@@ -51,7 +51,7 @@ router.post('/', requireAuth, (req, res) => {
   }
 });
 
-router.put('/:id', requireAuth, (req, res) => {
+router.put('/:id', requirePermission('players', 'edit'), (req, res) => {
   try {
     const { id } = req.params;
     const { name, birth_date } = req.body;
@@ -77,7 +77,7 @@ router.put('/:id', requireAuth, (req, res) => {
   }
 });
 
-router.delete('/:id', requireAuth, (req, res) => {
+router.delete('/:id', requirePermission('players', 'delete'), (req, res) => {
   try {
     const { id } = req.params;
 
@@ -99,7 +99,7 @@ router.delete('/:id', requireAuth, (req, res) => {
   }
 });
 
-router.post('/:id/teams', requireAuth, (req, res) => {
+router.post('/:id/teams', requirePermission('players', 'edit'), (req, res) => {
   try {
     const { id } = req.params;
     const { team_id } = req.body;
@@ -127,7 +127,7 @@ router.post('/:id/teams', requireAuth, (req, res) => {
   }
 });
 
-router.delete('/:id/teams/:teamId', requireAuth, (req, res) => {
+router.delete('/:id/teams/:teamId', requirePermission('players', 'edit'), (req, res) => {
   try {
     const { id, teamId } = req.params;
 

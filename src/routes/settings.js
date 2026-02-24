@@ -1,10 +1,10 @@
 const express = require('express');
 const db = require('../db');
-const { requireAuth, requireRole } = require('../middleware/auth');
+const { requirePermission } = require('../middleware/auth');
 
 const router = express.Router();
 
-router.get('/', requireAuth, (req, res) => {
+router.get('/', requirePermission('settings', 'view'), (req, res) => {
   try {
     const settings = db.prepare('SELECT * FROM settings').all();
     const settingsObj = {};
@@ -16,7 +16,7 @@ router.get('/', requireAuth, (req, res) => {
   }
 });
 
-router.put('/', requireRole('admin'), (req, res) => {
+router.put('/', requirePermission('settings', 'edit'), (req, res) => {
   try {
     const { key, value } = req.body;
 
@@ -38,7 +38,7 @@ router.put('/', requireRole('admin'), (req, res) => {
   }
 });
 
-router.get('/export', requireRole('admin'), (req, res) => {
+router.get('/export', requirePermission('settings', 'view'), (req, res) => {
   try {
     const data = {
       users: db.prepare('SELECT * FROM users').all(),
@@ -62,7 +62,7 @@ router.get('/export', requireRole('admin'), (req, res) => {
   }
 });
 
-router.post('/import', requireRole('admin'), (req, res) => {
+router.post('/import', requirePermission('settings', 'edit'), (req, res) => {
   try {
     const data = req.body;
 

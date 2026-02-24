@@ -1,10 +1,10 @@
 const express = require('express');
 const db = require('../db');
-const { requireAuth, requireRole } = require('../middleware/auth');
+const { requireAuth, requirePermission } = require('../middleware/auth');
 
 const router = express.Router();
 
-router.get('/', requireAuth, (req, res) => {
+router.get('/', requirePermission('coaches', 'view'), (req, res) => {
   try {
     const coaches = db.prepare(`
       SELECT c.*, u.email, u.name as user_name,
@@ -23,7 +23,7 @@ router.get('/', requireAuth, (req, res) => {
   }
 });
 
-router.post('/', requireRole('admin'), (req, res) => {
+router.post('/', requirePermission('coaches', 'create'), (req, res) => {
   try {
     const { user_id, name, phone } = req.body;
     
@@ -49,7 +49,7 @@ router.post('/', requireRole('admin'), (req, res) => {
   }
 });
 
-router.put('/:id', requireAuth, (req, res) => {
+router.put('/:id', requirePermission('coaches', 'edit'), (req, res) => {
   try {
     const { id } = req.params;
     const { name, phone } = req.body;
@@ -74,7 +74,7 @@ router.put('/:id', requireAuth, (req, res) => {
   }
 });
 
-router.delete('/:id', requireRole('admin'), (req, res) => {
+router.delete('/:id', requirePermission('coaches', 'delete'), (req, res) => {
   try {
     const { id } = req.params;
     const coach = db.prepare('SELECT * FROM coaches WHERE id = ?').get(id);
@@ -91,7 +91,7 @@ router.delete('/:id', requireRole('admin'), (req, res) => {
   }
 });
 
-router.post('/:id/teams', requireAuth, (req, res) => {
+router.post('/:id/teams', requirePermission('coaches', 'edit'), (req, res) => {
   try {
     const { id } = req.params;
     const { team_id } = req.body;
@@ -111,7 +111,7 @@ router.post('/:id/teams', requireAuth, (req, res) => {
   }
 });
 
-router.delete('/:id/teams/:teamId', requireAuth, (req, res) => {
+router.delete('/:id/teams/:teamId', requirePermission('coaches', 'edit'), (req, res) => {
   try {
     const { id, teamId } = req.params;
 

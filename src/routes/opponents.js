@@ -1,10 +1,10 @@
 const express = require('express');
 const db = require('../db');
-const { requireAuth, requireRole } = require('../middleware/auth');
+const { requirePermission } = require('../middleware/auth');
 
 const router = express.Router();
 
-router.get('/', requireAuth, (req, res) => {
+router.get('/', requirePermission('opponents', 'view'), (req, res) => {
   try {
     const opponents = db.prepare('SELECT * FROM opponents ORDER BY name').all();
     res.json({ opponents });
@@ -14,7 +14,7 @@ router.get('/', requireAuth, (req, res) => {
   }
 });
 
-router.post('/', requireAuth, (req, res) => {
+router.post('/', requirePermission('opponents', 'create'), (req, res) => {
   try {
     const { name, contact_name, phone, email, location } = req.body;
     
@@ -34,7 +34,7 @@ router.post('/', requireAuth, (req, res) => {
   }
 });
 
-router.put('/:id', requireAuth, (req, res) => {
+router.put('/:id', requirePermission('opponents', 'edit'), (req, res) => {
   try {
     const { id } = req.params;
     const { name, contact_name, phone, email, location } = req.body;
@@ -64,7 +64,7 @@ router.put('/:id', requireAuth, (req, res) => {
   }
 });
 
-router.delete('/:id', requireRole('admin'), (req, res) => {
+router.delete('/:id', requirePermission('opponents', 'delete'), (req, res) => {
   try {
     const { id } = req.params;
     db.prepare('DELETE FROM opponents WHERE id = ?').run(id);

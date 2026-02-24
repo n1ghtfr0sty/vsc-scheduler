@@ -1,14 +1,11 @@
 const express = require('express');
 const db = require('../db');
-const { requireAuth, requireRole } = require('../middleware/auth');
+const { requireAuth, requirePermission } = require('../middleware/auth');
 
 const router = express.Router();
 
-router.get('/', requireAuth, (req, res) => {
+router.get('/', requirePermission('families', 'view'), (req, res) => {
   try {
-    if (req.session.userRole !== 'admin') {
-      return res.status(403).json({ error: 'Admin access required' });
-    }
     const families = db.prepare(`
       SELECT f.*, u.email, u.name as user_name 
       FROM families f 
@@ -47,7 +44,7 @@ router.get('/my', requireAuth, (req, res) => {
   }
 });
 
-router.put('/:id', requireAuth, (req, res) => {
+router.put('/:id', requirePermission('families', 'edit'), (req, res) => {
   try {
     const { id } = req.params;
     const { name } = req.body;

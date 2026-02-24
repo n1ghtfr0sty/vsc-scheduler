@@ -1,6 +1,6 @@
 const express = require('express');
 const db = require('../db');
-const { requireAuth, requireRole } = require('../middleware/auth');
+const { requireAuth, requirePermission } = require('../middleware/auth');
 
 const router = express.Router();
 
@@ -16,7 +16,7 @@ const getCoachTeamIds = (userId, role) => {
   `).all(userId).map(t => t.id);
 };
 
-router.get('/', requireAuth, (req, res) => {
+router.get('/', requirePermission('teams', 'view'), (req, res) => {
   try {
     const teams = db.prepare(`
       SELECT t.*, 
@@ -54,7 +54,7 @@ router.get('/my', requireAuth, (req, res) => {
   }
 });
 
-router.post('/', requireRole('admin'), (req, res) => {
+router.post('/', requirePermission('teams', 'create'), (req, res) => {
   try {
     const { name, age_group } = req.body;
     if (!name) {
@@ -72,7 +72,7 @@ router.post('/', requireRole('admin'), (req, res) => {
   }
 });
 
-router.put('/:id', requireAuth, (req, res) => {
+router.put('/:id', requirePermission('teams', 'edit'), (req, res) => {
   try {
     const { id } = req.params;
     const { name, age_group } = req.body;
@@ -94,7 +94,7 @@ router.put('/:id', requireAuth, (req, res) => {
   }
 });
 
-router.delete('/:id', requireRole('admin'), (req, res) => {
+router.delete('/:id', requirePermission('teams', 'delete'), (req, res) => {
   try {
     const { id } = req.params;
     db.prepare('DELETE FROM teams WHERE id = ?').run(id);
@@ -105,7 +105,7 @@ router.delete('/:id', requireRole('admin'), (req, res) => {
   }
 });
 
-router.get('/:id/players', requireAuth, (req, res) => {
+router.get('/:id/players', requirePermission('teams', 'view'), (req, res) => {
   try {
     const { id } = req.params;
 

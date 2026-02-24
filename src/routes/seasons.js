@@ -1,10 +1,10 @@
 const express = require('express');
 const db = require('../db');
-const { requireAuth, requireRole } = require('../middleware/auth');
+const { requirePermission } = require('../middleware/auth');
 
 const router = express.Router();
 
-router.get('/', requireAuth, (req, res) => {
+router.get('/', requirePermission('seasons', 'view'), (req, res) => {
   try {
     const seasons = db.prepare('SELECT * FROM seasons ORDER BY start_date DESC').all();
     res.json({ seasons });
@@ -14,7 +14,7 @@ router.get('/', requireAuth, (req, res) => {
   }
 });
 
-router.post('/', requireRole('admin'), (req, res) => {
+router.post('/', requirePermission('seasons', 'create'), (req, res) => {
   try {
     const { name, year, type, start_date, end_date } = req.body;
     
@@ -38,7 +38,7 @@ router.post('/', requireRole('admin'), (req, res) => {
   }
 });
 
-router.put('/:id', requireRole('admin'), (req, res) => {
+router.put('/:id', requirePermission('seasons', 'edit'), (req, res) => {
   try {
     const { id } = req.params;
     const { name, year, type, start_date, end_date } = req.body;
@@ -68,7 +68,7 @@ router.put('/:id', requireRole('admin'), (req, res) => {
   }
 });
 
-router.delete('/:id', requireRole('admin'), (req, res) => {
+router.delete('/:id', requirePermission('seasons', 'delete'), (req, res) => {
   try {
     const { id } = req.params;
     db.prepare('DELETE FROM seasons WHERE id = ?').run(id);

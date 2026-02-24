@@ -1,9 +1,11 @@
 const express = require('express');
 const db = require('../db');
-const { requireAuth, requireRole } = require('../middleware/auth');
+const { requirePermission } = require('../middleware/auth');
 
 const router = express.Router();
 
+// Returns all team IDs that the current user is allowed to manage games for.
+// Admins get all teams; coaches only get teams they are assigned to.
 const getCoachTeamIds = (userId, role) => {
   if (role === 'admin') {
     return db.prepare('SELECT id FROM teams').all().map(t => t.id);
@@ -55,9 +57,9 @@ const checkConflicts = (teamId, gameDate, startTime, endTime, newLocation, exclu
     JOIN opponents o ON g.opponent_id = o.id
     WHERE g.game_date = ?
   `;
-  
+
   const params = [gameDate];
-  
+
   if (excludeGameId) {
     gamesQuery += ' AND g.id != ?';
     params.push(excludeGameId);
@@ -74,9 +76,9 @@ const checkConflicts = (teamId, gameDate, startTime, endTime, newLocation, exclu
     const timesOverlap = !(newEnd <= existStart || newStart >= existEnd);
 
     if (timesOverlap) {
-      const isSameLocation = newLocation && game.location && 
+      const isSameLocation = newLocation && game.location &&
         newLocation.toLowerCase() === game.location.toLowerCase();
-      
+
       const travelTime = isSameLocation ? config.travel_time_same_location : config.travel_time_different_location;
 
       const hasPlayerConflict = playerIds.length > 0 && db.prepare(`
@@ -89,7 +91,7 @@ const checkConflicts = (teamId, gameDate, startTime, endTime, newLocation, exclu
         WHERE p.family_id IN (${familyIds.join(',')}) AND pt.team_id = ?
       `).get(game.team_id).cnt > 0;
 
-      const hasCoachConflict = coachIds.includes(game.team_id) || 
+      const hasCoachConflict = coachIds.includes(game.team_id) ||
         (coachIds.length > 0 && db.prepare(`
           SELECT COUNT(*) as cnt FROM team_coaches WHERE coach_id IN (${coachIds.join(',')}) AND team_id = ?
         `).get(game.team_id).cnt > 0);
@@ -112,10 +114,10 @@ const checkConflicts = (teamId, gameDate, startTime, endTime, newLocation, exclu
   return { conflicts, suggestions };
 };
 
-router.get('/', requireAuth, (req, res) => {
+router.get('/', requirePermission('games', 'view'), (req, res) => {
   try {
     const { season_id, team_id } = req.query;
-    
+
     let query = `
       SELECT g.*, t.name as team_name, o.name as opponent_name, o.location as opponent_location,
         s.name as season_name
@@ -147,20 +149,20 @@ router.get('/', requireAuth, (req, res) => {
   }
 });
 
-router.get('/conflicts', requireAuth, (req, res) => {
+router.get('/conflicts', requirePermission('games', 'view'), (req, res) => {
   try {
     const { team_id, game_date, start_time, end_time, location, exclude_game_id } = req.query;
-    
+
     if (!team_id || !game_date || !start_time || !end_time) {
       return res.status(400).json({ error: 'team_id, game_date, start_time, and end_time are required' });
     }
 
     const result = checkConflicts(
-      parseInt(team_id), 
-      game_date, 
-      start_time, 
-      end_time, 
-      location, 
+      parseInt(team_id),
+      game_date,
+      start_time,
+      end_time,
+      location,
       exclude_game_id ? parseInt(exclude_game_id) : null
     );
 
@@ -171,7 +173,7 @@ router.get('/conflicts', requireAuth, (req, res) => {
   }
 });
 
-router.post('/', requireAuth, (req, res) => {
+router.post('/', requirePermission('games', 'create'), (req, res) => {
   try {
     const { team_id, opponent_id, location, season_id, game_date, start_time, end_time, notes } = req.body;
 
@@ -179,17 +181,13 @@ router.post('/', requireAuth, (req, res) => {
       return res.status(400).json({ error: 'Missing required fields' });
     }
 
+    // Non-admin users can only create games for teams they are assigned to
     const teamIds = getCoachTeamIds(req.session.userId, req.session.userRole);
     if (!teamIds.includes(parseInt(team_id))) {
       return res.status(403).json({ error: 'Not authorized for this team' });
     }
 
-    const config = getSettings();
-    const duration = parseInt(end_time.split(':')[0]) * 60 + parseInt(end_time.split(':')[1]) - 
-                     parseInt(start_time.split(':')[0]) * 60 - parseInt(start_time.split(':')[1]);
-    
     const calculatedEndTime = end_time;
-
     const conflictResult = checkConflicts(team_id, game_date, start_time, calculatedEndTime, location);
 
     const result = db.prepare(`
@@ -197,9 +195,9 @@ router.post('/', requireAuth, (req, res) => {
       VALUES (?, ?, ?, ?, ?, ?, ?, ?)
     `).run(team_id, opponent_id, location || null, season_id || null, game_date, start_time, calculatedEndTime, notes || null);
 
-    res.json({ 
+    res.json({
       game: { id: result.lastInsertRowid, team_id, opponent_id, location, season_id, game_date, start_time, end_time: calculatedEndTime },
-      conflicts: conflictResult.conflicts 
+      conflicts: conflictResult.conflicts
     });
   } catch (err) {
     console.error(err);
@@ -207,7 +205,7 @@ router.post('/', requireAuth, (req, res) => {
   }
 });
 
-router.put('/:id', requireAuth, (req, res) => {
+router.put('/:id', requirePermission('games', 'edit'), (req, res) => {
   try {
     const { id } = req.params;
     const { team_id, opponent_id, location, season_id, game_date, start_time, end_time, notes } = req.body;
@@ -217,6 +215,7 @@ router.put('/:id', requireAuth, (req, res) => {
       return res.status(404).json({ error: 'Game not found' });
     }
 
+    // Non-admin users can only edit games belonging to their assigned teams
     const teamIds = getCoachTeamIds(req.session.userId, req.session.userRole);
     if (!teamIds.includes(game.team_id)) {
       return res.status(403).json({ error: 'Not authorized' });
@@ -229,17 +228,17 @@ router.put('/:id', requireAuth, (req, res) => {
     const effectiveLocation = location || game.location;
 
     const conflictResult = checkConflicts(
-      effectiveTeamId, 
-      effectiveDate, 
-      effectiveStart, 
-      effectiveEnd, 
-      effectiveLocation, 
+      effectiveTeamId,
+      effectiveDate,
+      effectiveStart,
+      effectiveEnd,
+      effectiveLocation,
       parseInt(id)
     );
 
     db.prepare(`
-      UPDATE games 
-      SET team_id = ?, opponent_id = ?, location = ?, season_id = ?, 
+      UPDATE games
+      SET team_id = ?, opponent_id = ?, location = ?, season_id = ?,
           game_date = ?, start_time = ?, end_time = ?, notes = ?
       WHERE id = ?
     `).run(
@@ -254,9 +253,9 @@ router.put('/:id', requireAuth, (req, res) => {
       id
     );
 
-    res.json({ 
+    res.json({
       message: 'Game updated',
-      conflicts: conflictResult.conflicts 
+      conflicts: conflictResult.conflicts
     });
   } catch (err) {
     console.error(err);
@@ -264,7 +263,7 @@ router.put('/:id', requireAuth, (req, res) => {
   }
 });
 
-router.delete('/:id', requireAuth, (req, res) => {
+router.delete('/:id', requirePermission('games', 'delete'), (req, res) => {
   try {
     const { id } = req.params;
 
@@ -273,6 +272,7 @@ router.delete('/:id', requireAuth, (req, res) => {
       return res.status(404).json({ error: 'Game not found' });
     }
 
+    // Non-admin users can only delete games belonging to their assigned teams
     const teamIds = getCoachTeamIds(req.session.userId, req.session.userRole);
     if (!teamIds.includes(game.team_id)) {
       return res.status(403).json({ error: 'Not authorized' });
