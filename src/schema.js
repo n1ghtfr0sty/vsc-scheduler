@@ -8,7 +8,7 @@ async function main() {
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       email TEXT UNIQUE NOT NULL,
       password_hash TEXT NOT NULL,
-      role TEXT NOT NULL CHECK(role IN ('admin', 'coach', 'family')),
+      role TEXT NOT NULL CHECK(role IN ('admin', 'coach', 'family', 'pending')),
       name TEXT NOT NULL,
       phone TEXT,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
@@ -108,6 +108,17 @@ async function main() {
     INSERT OR IGNORE INTO settings (key, value) VALUES ('travel_time_same_location', '0');
     INSERT OR IGNORE INTO settings (key, value) VALUES ('travel_time_different_location', '90');
     INSERT OR IGNORE INTO settings (key, value) VALUES ('default_game_duration', '90');
+
+    CREATE TABLE IF NOT EXISTS user_permissions (
+      user_id INTEGER NOT NULL,
+      resource TEXT NOT NULL,
+      can_view INTEGER DEFAULT 0,
+      can_create INTEGER DEFAULT 0,
+      can_edit INTEGER DEFAULT 0,
+      can_delete INTEGER DEFAULT 0,
+      PRIMARY KEY (user_id, resource),
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    );
   `);
 
   console.log('Database schema created');

@@ -11,7 +11,7 @@ async function main() {
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       email TEXT UNIQUE NOT NULL,
       password_hash TEXT NOT NULL,
-      role TEXT NOT NULL CHECK(role IN ('admin', 'coach', 'family')),
+      role TEXT NOT NULL CHECK(role IN ('admin', 'coach', 'family', 'pending')),
       name TEXT NOT NULL,
       phone TEXT,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
@@ -111,6 +111,17 @@ async function main() {
     INSERT OR IGNORE INTO settings (key, value) VALUES ('travel_time_same_location', '0');
     INSERT OR IGNORE INTO settings (key, value) VALUES ('travel_time_different_location', '90');
     INSERT OR IGNORE INTO settings (key, value) VALUES ('default_game_duration', '90');
+
+    CREATE TABLE IF NOT EXISTS user_permissions (
+      user_id INTEGER NOT NULL,
+      resource TEXT NOT NULL,
+      can_view INTEGER DEFAULT 0,
+      can_create INTEGER DEFAULT 0,
+      can_edit INTEGER DEFAULT 0,
+      can_delete INTEGER DEFAULT 0,
+      PRIMARY KEY (user_id, resource),
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    );
   `);
 
   console.log('Seeding data...');
@@ -341,6 +352,43 @@ async function main() {
   db.prepare(`INSERT INTO team_coaches (coach_id, team_id) VALUES (?, ?)`).run(coachRec3.lastInsertRowid, teamU13Boys.lastInsertRowid);
   db.prepare(`INSERT INTO team_coaches (coach_id, team_id) VALUES (?, ?)`).run(coachRec4.lastInsertRowid, teamU13Girls.lastInsertRowid);
 
+  // Helper to grant a user permissions on a resource
+  // canView/canCreate/canEdit/canDelete are booleans
+  function grantPermission(userId, resource, canView, canCreate, canEdit, canDelete) {
+    db.prepare(`
+      INSERT OR REPLACE INTO user_permissions (user_id, resource, can_view, can_create, can_edit, can_delete)
+      VALUES (?, ?, ?, ?, ?, ?)
+    `).run(userId, resource, canView ? 1 : 0, canCreate ? 1 : 0, canEdit ? 1 : 0, canDelete ? 1 : 0);
+  }
+
+  // Default coach permissions: can manage games and opponents for their teams,
+  // read-only access to everything else
+  function grantCoachPermissions(userId) {
+    grantPermission(userId, 'games',     true,  true,  true,  true);
+    grantPermission(userId, 'teams',     true,  false, true,  false);
+    grantPermission(userId, 'players',   true,  false, false, false);
+    grantPermission(userId, 'families',  true,  false, false, false);
+    grantPermission(userId, 'coaches',   true,  false, false, false);
+    grantPermission(userId, 'opponents', true,  true,  true,  false);
+    grantPermission(userId, 'seasons',   true,  false, false, false);
+    grantPermission(userId, 'settings',  true,  false, false, false);
+    grantPermission(userId, 'users',     false, false, false, false);
+  }
+
+  // Default family permissions: read-only schedule access, can edit their own
+  // players and family record (ownership enforced at the route level)
+  function grantFamilyPermissions(userId) {
+    grantPermission(userId, 'games',     true,  false, false, false);
+    grantPermission(userId, 'teams',     true,  false, false, false);
+    grantPermission(userId, 'players',   true,  true,  true,  false);
+    grantPermission(userId, 'families',  true,  false, true,  false);
+    grantPermission(userId, 'coaches',   true,  false, false, false);
+    grantPermission(userId, 'opponents', true,  false, false, false);
+    grantPermission(userId, 'seasons',   true,  false, false, false);
+    grantPermission(userId, 'settings',  true,  false, false, false);
+    grantPermission(userId, 'users',     false, false, false, false);
+  }
+
   // Opponents
   const opponents = [
     ['Rockets FC', 'John Smith', '555-1001', 'john@rockets.com', 'Rockets Field'],
@@ -377,6 +425,19 @@ async function main() {
   const game4 = db.prepare(`INSERT INTO games (team_id, opponent_id, location, season_id, game_date, start_time, end_time, notes) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`).run(
     teamU6Boys.lastInsertRowid, 4, 'Eagle Stadium', season1.lastInsertRowid, '2025-09-22', '09:00', '10:00', 'U6-U8 friendly'
   );
+
+  // Grant permissions to seeded users (admin bypasses permission checks automatically)
+  grantCoachPermissions(coach1.lastInsertRowid);
+  grantCoachPermissions(coach2.lastInsertRowid);
+  grantCoachPermissions(coach3.lastInsertRowid);
+  grantCoachPermissions(coach4.lastInsertRowid);
+
+  const familyUsers = [
+    u6B1, u6B2, u6G1, u6G2, u9B1, u9B2, u9B3, u9G1, u9G2, u9G3,
+    u11B1, u11B2, u11B3, u11B4, u11G1, u11G2, u11G3, u11G4,
+    u13B1, u13B2, u13B3, u13B4, u13B5, u13G1, u13G2, u13G3, u13G4, u13G5
+  ];
+  familyUsers.forEach(f => grantFamilyPermissions(f.userId));
 
   console.log('Seed data complete!');
   console.log('Login credentials:');
