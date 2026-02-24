@@ -250,8 +250,8 @@ window.location.hash = '#/path';
 ```css
 /* Use CSS custom properties for theming */
 :root {
-  --primary: #1e3a5f;
-  --secondary: #f4a261;
+  --primary: #228B22;
+  --gold: #FFD700;
 }
 
 /* BEM-like naming for complex components */
