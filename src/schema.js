@@ -108,6 +108,7 @@ async function main() {
     INSERT OR IGNORE INTO settings (key, value) VALUES ('travel_time_same_location', '0');
     INSERT OR IGNORE INTO settings (key, value) VALUES ('travel_time_different_location', '90');
     INSERT OR IGNORE INTO settings (key, value) VALUES ('default_game_duration', '90');
+    INSERT OR IGNORE INTO settings (key, value) VALUES ('home_location', 'Evergreen');
 
     CREATE TABLE IF NOT EXISTS user_permissions (
       user_id INTEGER NOT NULL,

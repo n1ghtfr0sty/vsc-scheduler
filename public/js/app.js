@@ -408,6 +408,7 @@ const App = {
 
       const defaultDuration = parseInt(settingsData.settings.default_game_duration) || 90;
       window._defaultGameDuration = defaultDuration;
+      window._homeLocation = settingsData.settings.home_location || 'Evergreen';
       const gameDate = game?.game_date || prefillDate || '';
 
       main.innerHTML = `
@@ -426,10 +427,10 @@ const App = {
             </div>
             <div class="form-group">
               <label>Opponent *</label>
-              <select name="opponent_id" required>
+              <select name="opponent_id" id="opponentSelect" required onchange="App.updateGameLocations()">
                 <option value="">Select Opponent</option>
                 ${opponentsData.opponents.map(o => `
-                  <option value="${o.id}" ${game?.opponent_id == o.id ? 'selected' : ''}>${o.name}</option>
+                  <option value="${o.id}" data-location="${o.location || ''}" ${game?.opponent_id == o.id ? 'selected' : ''}>${o.name}</option>
                 `).join('')}
               </select>
             </div>
@@ -443,11 +444,9 @@ const App = {
               </select>
             </div>
             <div class="form-group">
-              <label>Location</label>
-              <select name="location" required>
-                <option value="">Select Location</option>
-                <option value="Home" ${game?.location === 'Home' ? 'selected' : ''}>Home (VSC)</option>
-                <option value="Away" ${game?.location === 'Away' ? 'selected' : ''}>Away (Opponent)</option>
+              <label>Location *</label>
+              <select name="location" id="locationSelect" required>
+                <option value="">Select an opponent first</option>
               </select>
             </div>
             <div class="form-group">
@@ -476,6 +475,9 @@ const App = {
       const startTimeInput = document.querySelector('[name="start_time"]');
       const endTimeInput = document.querySelector('[name="end_time"]');
       startTimeInput.addEventListener('change', () => App.calculateEndTime());
+
+      // If editing, pre-populate the location dropdown for the saved opponent
+      if (game) App.updateGameLocations(game.location);
 
       document.getElementById('gameForm').addEventListener('submit', async (e) => {
         e.preventDefault();
@@ -543,6 +545,31 @@ const App = {
     } catch (err) {
       main.innerHTML = `<div class="alert alert-danger">${err.message}</div>`;
     }
+  },
+
+  // Rebuild the location dropdown based on the currently selected opponent.
+  // Pass currentLocation to pre-select a value (used when editing an existing game).
+  updateGameLocations(currentLocation = null) {
+    const opponentSelect = document.getElementById('opponentSelect');
+    const locationSelect = document.getElementById('locationSelect');
+    if (!opponentSelect || !locationSelect) return;
+
+    const selectedOption = opponentSelect.options[opponentSelect.selectedIndex];
+    const opponentLocation = selectedOption?.dataset?.location || '';
+    const opponentName = selectedOption?.text || 'Opponent';
+    const homeLocation = window._homeLocation || 'Evergreen';
+
+    // Build the two location options: VSC home field and the opponent's field
+    let options = `<option value="">Select Location</option>`;
+    options += `<option value="${homeLocation}" ${currentLocation === homeLocation ? 'selected' : ''}>${homeLocation} (VSC Home)</option>`;
+
+    if (opponentLocation) {
+      options += `<option value="${opponentLocation}" ${currentLocation === opponentLocation ? 'selected' : ''}>${opponentLocation} (${opponentName})</option>`;
+    } else {
+      options += `<option value="" disabled>Opponent has no location on file</option>`;
+    }
+
+    locationSelect.innerHTML = options;
   },
 
   calculateEndTime() {
@@ -1308,6 +1335,10 @@ const App = {
           <h2>Travel Time Settings</h2>
           <form id="settingsForm">
             <div class="form-group">
+              <label>VSC Home Location Name</label>
+              <input type="text" name="home_location" value="${data.settings.home_location || 'Evergreen'}" placeholder="e.g., Evergreen">
+            </div>
+            <div class="form-group">
               <label>Same Location Travel Time (minutes)</label>
               <input type="number" name="travel_time_same_location" value="${data.settings.travel_time_same_location || 0}" min="0">
             </div>
@@ -1338,6 +1369,7 @@ const App = {
         const formData = new FormData(e.target);
 
         try {
+          await API.settings.update('home_location', formData.get('home_location'));
           await API.settings.update('travel_time_same_location', formData.get('travel_time_same_location'));
           await API.settings.update('travel_time_different_location', formData.get('travel_time_different_location'));
           await API.settings.update('default_game_duration', formData.get('default_game_duration'));
