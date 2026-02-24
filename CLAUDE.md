@@ -89,7 +89,34 @@ const data = await API.request('/api/games', { method: 'POST', body: JSON.string
 - **Travel time** configurable in settings: same location = 0 min, different location = 90 min (default).
 - **Default game duration**: 90 minutes.
 - All times stored in **local time** (not UTC).
-- User roles: `admin`, `coach`, `family`.
+
+### Roles and Permissions
+
+User roles: `admin`, `coach`, `family`, `pending`.
+
+- `admin` — full access, bypasses all permission checks.
+- `pending` — new registrations land here; blocked from all protected routes until admin acts.
+- `coach` / `family` — access determined entirely by the `user_permissions` table.
+
+**`user_permissions` table** stores per-user, per-resource flags:
+- Resources: `games`, `players`, `families`, `coaches`, `teams`, `opponents`, `seasons`, `settings`, `users`
+- Actions per resource: `can_view`, `can_create`, `can_edit`, `can_delete`
+
+**Backend middleware** (`src/middleware/auth.js`):
+- `requireAuth` — checks session only (used on `/api/families/my`, `/api/teams/my`, `/api/auth/me`)
+- `requirePermission(resource, action)` — used on all other routes; admin passes through, pending is blocked, others checked against `user_permissions`
+- `requireRole('admin')` — used only on `/api/users/*` (admin-only user management)
+
+**Frontend** (`public/js/auth.js`):
+- `Auth.can(resource, action)` — returns `true` for admin, otherwise checks `Auth.permissions`
+- `Auth.isPending()` — returns `true` if role is `pending`
+- `Auth.permissions` — loaded from `/api/auth/me` on init/login; `null` for admin
+- `Auth.requireAuth()` — redirects pending users to `/pending` page
+
+**Admin user management** UI at `#/users` and API at `/api/users`:
+- List all users with current role and permissions
+- `PUT /api/users/:id/role` — change role
+- `PUT /api/users/:id/permissions` — update full permissions object for a user
 
 ## Styling
 

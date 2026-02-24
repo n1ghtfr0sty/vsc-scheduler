@@ -341,6 +341,63 @@ pm2 logs vsc-scheduler --lines 20
 
 ---
 
+## Roles and Permissions
+
+User roles: `admin`, `coach`, `family`, `pending`.
+
+- `admin` — full access, bypasses all permission checks automatically.
+- `pending` — assigned to all new registrations. Cannot access any protected route until an admin grants a role and sets permissions.
+- `coach` / `family` — access is determined entirely by the `user_permissions` table, not the role name.
+
+### user_permissions Table
+
+Each row grants a user specific access to a resource:
+
+| Column | Type | Description |
+|--------|------|-------------|
+| user_id | INTEGER | FK to users |
+| resource | TEXT | `games`, `players`, `families`, `coaches`, `teams`, `opponents`, `seasons`, `settings`, `users` |
+| can_view | INTEGER | 1 = allowed |
+| can_create | INTEGER | 1 = allowed |
+| can_edit | INTEGER | 1 = allowed |
+| can_delete | INTEGER | 1 = allowed |
+
+### Backend Middleware
+
+```javascript
+const { requireAuth, requirePermission, requireRole } = require('../middleware/auth');
+
+// Used on /api/families/my, /api/teams/my, /api/auth/me
+router.get('/my', requireAuth, handler);
+
+// Used on all resource routes — admin passes through, pending is blocked,
+// others are checked against user_permissions
+router.get('/', requirePermission('games', 'view'), handler);
+router.post('/', requirePermission('games', 'create'), handler);
+router.put('/:id', requirePermission('games', 'edit'), handler);
+router.delete('/:id', requirePermission('games', 'delete'), handler);
+
+// Used only on /api/users/* (admin-only user management)
+router.get('/', requireRole('admin'), handler);
+```
+
+### Frontend Permission Checks
+
+```javascript
+// Check a permission in UI code
+if (Auth.can('games', 'create')) { /* show New Game button */ }
+if (Auth.isAdmin()) { /* show Users nav link */ }
+if (Auth.isPending()) { /* show pending approval message */ }
+```
+
+### Admin User Management
+
+- UI: `#/users` page (visible only to admins)
+- API: `GET /api/users`, `PUT /api/users/:id/role`, `PUT /api/users/:id/permissions`
+- Permissions object format: `{ games: { view, create, edit, delete }, players: { ... }, ... }`
+
+---
+
 ## Notes
 
 - No TypeScript in this project
