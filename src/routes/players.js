@@ -23,6 +23,30 @@ router.get('/', requirePermission('players', 'view'), (req, res) => {
   }
 });
 
+router.get('/:id', requirePermission('players', 'view'), (req, res) => {
+  try {
+    const { id } = req.params;
+    const player = db.prepare(`
+      SELECT p.*, f.name as family_name, f.id as family_id,
+        GROUP_CONCAT(t.id || ':' || t.name) as teams
+      FROM players p
+      JOIN families f ON p.family_id = f.id
+      LEFT JOIN player_teams pt ON p.id = pt.player_id
+      LEFT JOIN teams t ON pt.team_id = t.id
+      WHERE p.id = ?
+      GROUP BY p.id
+    `).get(id);
+
+    if (!player) {
+      return res.status(404).json({ error: 'Player not found' });
+    }
+    res.json({ player });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to fetch player' });
+  }
+});
+
 router.post('/', requirePermission('players', 'create'), (req, res) => {
   try {
     const { name, birth_date, family_id } = req.body;

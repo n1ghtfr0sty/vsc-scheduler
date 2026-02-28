@@ -20,9 +20,11 @@ const App = {
     Router.route('/teams', () => this.renderTeams());
     Router.route('/teams/:id', (params) => this.renderTeamDetail(params.id));
     Router.route('/players', () => this.renderPlayers());
+    Router.route('/players/:id', (params) => this.renderPlayerDetail(params.id));
     Router.route('/opponents', () => this.renderOpponents());
     Router.route('/seasons', () => this.renderSeasons());
     Router.route('/families', () => this.renderFamilies());
+    Router.route('/families/:id', (params) => this.renderFamilyDetail(params.id));
     Router.route('/coaches', () => this.renderCoaches());
     Router.route('/settings', () => this.renderSettings());
     Router.route('/users', () => this.renderUsers());
@@ -660,7 +662,13 @@ const App = {
       const team = teamData.teams.find(t => t.id == id);
 
       main.innerHTML = `
-        <h1>${team?.name || 'Team'}</h1>
+        <div class="header-actions">
+          <h1>${team?.name || 'Team'}</h1>
+          <div>
+            ${Auth.can('teams', 'edit') ? `<button class="btn btn-outline" onclick="App.showTeamForm(${id})">Edit</button>` : ''}
+            <button class="btn btn-outline" onclick="Router.navigate('/teams')">Back to Teams</button>
+          </div>
+        </div>
         <div class="card">
           <h2>Team Info</h2>
           <p><strong>Age Group:</strong> ${team?.age_group || 'N/A'}</p>
@@ -679,9 +687,12 @@ const App = {
             <tbody>
               ${playersData.players.map(p => `
                 <tr>
-                  <td>${p.name}</td>
+                  <td><a href="#/players/${p.id}" class="link">${p.name}</a></td>
                   <td>${p.birth_date || 'N/A'}</td>
-                  <td>${p.family_name || 'N/A'}</td>
+                  <td>${Auth.can('families', 'view')
+                    ? `<a href="#/families/${p.family_id}" class="link">${p.family_name || 'N/A'}</a>`
+                    : (p.family_name || 'N/A')
+                  }</td>
                 </tr>
               `).join('')}
             </tbody>
@@ -827,6 +838,97 @@ const App = {
               `).join('')}
             </tbody>
           </table>
+        </div>
+      `;
+    } catch (err) {
+      main.innerHTML = `<div class="alert alert-danger">${err.message}</div>`;
+    }
+  },
+
+  async renderPlayerDetail(id) {
+    if (!Auth.requireAuth()) return;
+
+    const main = document.getElementById('main');
+    main.innerHTML = '<div class="loading">Loading...</div>';
+
+    try {
+      const { player } = await API.players.getOne(id);
+
+      const teamLinks = player.teams
+        ? player.teams.split(',').map(t => {
+            const [tid, tname] = t.split(':');
+            return `<a href="#/teams/${tid}" class="link">${tname}</a>`;
+          }).join(', ')
+        : 'None';
+
+      main.innerHTML = `
+        <div class="header-actions">
+          <h1>${player.name}</h1>
+          <div>
+            ${Auth.can('players', 'edit') ? `<button class="btn btn-outline" onclick="App.showPlayerForm(${player.id})">Edit</button>` : ''}
+            <button class="btn btn-outline" onclick="Router.navigate('/players')">Back to Players</button>
+          </div>
+        </div>
+        <div class="card">
+          <h2>Player Info</h2>
+          <p><strong>Birth Date:</strong> ${player.birth_date || 'N/A'}</p>
+          <p><strong>Family:</strong> <a href="#/families/${player.family_id}" class="link">${player.family_name}</a></p>
+          <p><strong>Teams:</strong> ${teamLinks}</p>
+        </div>
+      `;
+    } catch (err) {
+      main.innerHTML = `<div class="alert alert-danger">${err.message}</div>`;
+    }
+  },
+
+  async renderFamilyDetail(id) {
+    if (!Auth.requireAuth()) return;
+
+    const main = document.getElementById('main');
+    main.innerHTML = '<div class="loading">Loading...</div>';
+
+    try {
+      const { family, players } = await API.families.getOne(id);
+
+      main.innerHTML = `
+        <div class="header-actions">
+          <h1>${family.name}</h1>
+          <button class="btn btn-outline" onclick="Router.navigate('/families')">Back to Families</button>
+        </div>
+        <div class="card">
+          <h2>Contact Info</h2>
+          <p><strong>Account Name:</strong> ${family.user_name || 'N/A'}</p>
+          <p><strong>Email:</strong> ${family.email || 'N/A'}</p>
+        </div>
+        <div class="card">
+          <h2>Players</h2>
+          <table>
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Birth Date</th>
+                <th>Teams</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${players.map(p => {
+                const teamLinks = p.teams
+                  ? p.teams.split(',').map(t => {
+                      const [tid, tname] = t.split(':');
+                      return `<a href="#/teams/${tid}" class="link">${tname}</a>`;
+                    }).join(', ')
+                  : 'None';
+                return `
+                  <tr>
+                    <td><a href="#/players/${p.id}" class="link">${p.name}</a></td>
+                    <td>${p.birth_date || 'N/A'}</td>
+                    <td>${teamLinks}</td>
+                  </tr>
+                `;
+              }).join('')}
+            </tbody>
+          </table>
+          ${players.length === 0 ? '<p class="empty-state">No players in this family</p>' : ''}
         </div>
       `;
     } catch (err) {

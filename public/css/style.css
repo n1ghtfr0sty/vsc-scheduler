@@ -588,6 +588,16 @@ tr:last-child td {
   color: var(--text-muted);
 }
 
+a.link {
+  color: var(--primary);
+  text-decoration: none;
+}
+
+a.link:hover {
+  text-decoration: underline;
+  color: var(--primary-light, #2ea82e);
+}
+
 .header-actions {
   display: flex;
   justify-content: space-between;

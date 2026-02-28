@@ -44,6 +44,37 @@ router.get('/my', requireAuth, (req, res) => {
   }
 });
 
+router.get('/:id', requirePermission('families', 'view'), (req, res) => {
+  try {
+    const { id } = req.params;
+    const family = db.prepare(`
+      SELECT f.*, u.email, u.name as user_name
+      FROM families f
+      JOIN users u ON f.user_id = u.id
+      WHERE f.id = ?
+    `).get(id);
+
+    if (!family) {
+      return res.status(404).json({ error: 'Family not found' });
+    }
+
+    const players = db.prepare(`
+      SELECT p.*, GROUP_CONCAT(t.id || ':' || t.name) as teams
+      FROM players p
+      LEFT JOIN player_teams pt ON p.id = pt.player_id
+      LEFT JOIN teams t ON pt.team_id = t.id
+      WHERE p.family_id = ?
+      GROUP BY p.id
+      ORDER BY p.name
+    `).all(id);
+
+    res.json({ family, players });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to fetch family' });
+  }
+});
+
 router.put('/:id', requirePermission('families', 'edit'), (req, res) => {
   try {
     const { id } = req.params;

@@ -60,6 +60,9 @@ const API = {
     async getAll() {
       return API.request('/api/families');
     },
+    async getOne(id) {
+      return API.request(`/api/families/${id}`);
+    },
     async getMy() {
       return API.request('/api/families/my');
     },
@@ -74,6 +77,9 @@ const API = {
   players: {
     async getAll() {
       return API.request('/api/players');
+    },
+    async getOne(id) {
+      return API.request(`/api/players/${id}`);
     },
     async create(data) {
       return API.request('/api/players', {
