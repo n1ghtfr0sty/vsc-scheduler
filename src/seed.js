@@ -403,7 +403,8 @@ async function main() {
   ];
 
   const oppStmt = db.prepare(`INSERT INTO opponents (name, contact_name, phone, email, location) VALUES (?, ?, ?, ?, ?)`);
-  opponents.forEach(o => oppStmt.run(o[0], o[1], o[2], o[3], o[4]));
+  const oppIds = opponents.map(o => oppStmt.run(o[0], o[1], o[2], o[3], o[4]).lastInsertRowid);
+  const [rocketsFCId, unitedFCId, starsSCId, eagleUnitedId, phoenixSCId, warriorsFCId, lightningSCId, thunderFCId] = oppIds;
 
   // Seasons
   const season1 = db.prepare(`INSERT INTO seasons (name, year, type, start_date, end_date) VALUES (?, ?, ?, ?, ?)`).run(
@@ -415,17 +416,88 @@ async function main() {
 
   // Sample Games
   const game1 = db.prepare(`INSERT INTO games (team_id, opponent_id, location, season_id, game_date, start_time, end_time, notes) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`).run(
-    teamU9Boys.lastInsertRowid, 1, 'Rockets Field', season1.lastInsertRowid, '2025-09-15', '09:00', '10:30', 'Season opener'
+    teamU9Boys.lastInsertRowid, rocketsFCId, 'Rockets Field', season1.lastInsertRowid, '2025-09-15', '09:00', '10:30', 'Season opener'
   );
   const game2 = db.prepare(`INSERT INTO games (team_id, opponent_id, location, season_id, game_date, start_time, end_time, notes) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`).run(
-    teamU11Boys.lastInsertRowid, 2, 'Home Field', season1.lastInsertRowid, '2025-09-22', '10:00', '11:30', ''
+    teamU11Boys.lastInsertRowid, unitedFCId, 'Home Field', season1.lastInsertRowid, '2025-09-22', '10:00', '11:30', ''
   );
   const game3 = db.prepare(`INSERT INTO games (team_id, opponent_id, location, season_id, game_date, start_time, end_time, notes) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`).run(
-    teamU13Boys.lastInsertRowid, 3, 'Stars Arena', season1.lastInsertRowid, '2025-09-15', '09:00', '10:30', 'Home game'
+    teamU13Boys.lastInsertRowid, starsSCId, 'Stars Arena', season1.lastInsertRowid, '2025-09-15', '09:00', '10:30', 'Home game'
   );
   const game4 = db.prepare(`INSERT INTO games (team_id, opponent_id, location, season_id, game_date, start_time, end_time, notes) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`).run(
-    teamU6Boys.lastInsertRowid, 4, 'Eagle Stadium', season1.lastInsertRowid, '2025-09-22', '09:00', '10:00', 'U6-U8 friendly'
+    teamU6Boys.lastInsertRowid, eagleUnitedId, 'Eagle Stadium', season1.lastInsertRowid, '2025-09-22', '09:00', '10:00', 'U6-U8 friendly'
   );
+
+  // --- Spring '26 Season ---
+  const season3 = db.prepare(`INSERT INTO seasons (name, year, type, start_date, end_date) VALUES (?, ?, ?, ?, ?)`).run(
+    "Spring '26", '2026', 'spring', '2026-03-01', '2026-04-30'
+  );
+
+  // Spring schedule: 8 Saturdays, 4 games per day (32 total).
+  // Each team plays 4 games, balanced 2 home / 2 away.
+  // Coaches are staggered within each day to prevent double-booking:
+  //   Pattern A days (Mar 7, Mar 21, Apr 4, Apr 18):
+  //     Coach Mike  — U6-U8 Boys @ 09:00, U9-U10 Boys @ 11:00
+  //     Coach Lisa  — U11-U12 Girls @ 09:00, U13-U16 Girls @ 12:00
+  //   Pattern B days (Mar 14, Mar 28, Apr 11, Apr 25):
+  //     Coach Sarah — U6-U8 Girls @ 09:00, U9-U10 Girls @ 11:00
+  //     Coach Tom   — U11-U12 Boys @ 09:00, U13-U16 Boys @ 12:00
+  const sid = season3.lastInsertRowid;
+  const gameStmt = db.prepare(`INSERT INTO games (team_id, opponent_id, location, season_id, game_date, start_time, end_time, notes) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`);
+  const t = {
+    u6b:  teamU6Boys.lastInsertRowid,
+    u6g:  teamU6Girls.lastInsertRowid,
+    u9b:  teamU9Boys.lastInsertRowid,
+    u9g:  teamU9Girls.lastInsertRowid,
+    u11b: teamU11Boys.lastInsertRowid,
+    u11g: teamU11Girls.lastInsertRowid,
+    u13b: teamU13Boys.lastInsertRowid,
+    u13g: teamU13Girls.lastInsertRowid,
+  };
+  const springGames = [
+    // Mar 7 — Pattern A (Coach Mike + Coach Lisa)
+    [t.u6b,  rocketsFCId,   'Evergreen',       sid, '2026-03-07', '09:00', '10:00', 'Spring opener'],
+    [t.u9b,  unitedFCId,    'United Park',     sid, '2026-03-07', '11:00', '12:30', ''],
+    [t.u11g, starsSCId,     'Stars Arena',     sid, '2026-03-07', '09:00', '10:30', ''],
+    [t.u13g, eagleUnitedId, 'Evergreen',       sid, '2026-03-07', '12:00', '13:30', ''],
+    // Mar 14 — Pattern B (Coach Sarah + Coach Tom)
+    [t.u6g,  rocketsFCId,   'Rockets Field',   sid, '2026-03-14', '09:00', '10:00', ''],
+    [t.u9g,  phoenixSCId,   'Phoenix Grounds', sid, '2026-03-14', '11:00', '12:30', ''],
+    [t.u11b, warriorsFCId,  'Warrior Field',   sid, '2026-03-14', '09:00', '10:30', ''],
+    [t.u13b, lightningSCId, 'Evergreen',       sid, '2026-03-14', '12:00', '13:30', ''],
+    // Mar 21 — Pattern A
+    [t.u6b,  unitedFCId,    'United Park',     sid, '2026-03-21', '09:00', '10:00', ''],
+    [t.u9b,  starsSCId,     'Evergreen',       sid, '2026-03-21', '11:00', '12:30', ''],
+    [t.u11g, thunderFCId,   'Evergreen',       sid, '2026-03-21', '09:00', '10:30', ''],
+    [t.u13g, phoenixSCId,   'Phoenix Grounds', sid, '2026-03-21', '12:00', '13:30', ''],
+    // Mar 28 — Pattern B
+    [t.u6g,  eagleUnitedId, 'Evergreen',       sid, '2026-03-28', '09:00', '10:00', ''],
+    [t.u9g,  warriorsFCId,  'Evergreen',       sid, '2026-03-28', '11:00', '12:30', ''],
+    [t.u11b, lightningSCId, 'Lightning Park',  sid, '2026-03-28', '09:00', '10:30', ''],
+    [t.u13b, thunderFCId,   'Thunder Arena',   sid, '2026-03-28', '12:00', '13:30', ''],
+    // Apr 4 — Pattern A
+    [t.u6b,  phoenixSCId,   'Phoenix Grounds', sid, '2026-04-04', '09:00', '10:00', ''],
+    [t.u9b,  eagleUnitedId, 'Evergreen',       sid, '2026-04-04', '11:00', '12:30', ''],
+    [t.u11g, rocketsFCId,   'Rockets Field',   sid, '2026-04-04', '09:00', '10:30', ''],
+    [t.u13g, warriorsFCId,  'Warrior Field',   sid, '2026-04-04', '12:00', '13:30', ''],
+    // Apr 11 — Pattern B
+    [t.u6g,  starsSCId,     'Stars Arena',     sid, '2026-04-11', '09:00', '10:00', ''],
+    [t.u9g,  thunderFCId,   'Evergreen',       sid, '2026-04-11', '11:00', '12:30', ''],
+    [t.u11b, rocketsFCId,   'Evergreen',       sid, '2026-04-11', '09:00', '10:30', ''],
+    [t.u13b, unitedFCId,    'United Park',     sid, '2026-04-11', '12:00', '13:30', ''],
+    // Apr 18 — Pattern A
+    [t.u6b,  warriorsFCId,  'Evergreen',       sid, '2026-04-18', '09:00', '10:00', ''],
+    [t.u9b,  lightningSCId, 'Lightning Park',  sid, '2026-04-18', '11:00', '12:30', ''],
+    [t.u11g, unitedFCId,    'Evergreen',       sid, '2026-04-18', '09:00', '10:30', ''],
+    [t.u13g, starsSCId,     'Evergreen',       sid, '2026-04-18', '12:00', '13:30', ''],
+    // Apr 25 — Pattern B
+    [t.u6g,  thunderFCId,   'Evergreen',       sid, '2026-04-25', '09:00', '10:00', ''],
+    [t.u9g,  lightningSCId, 'Lightning Park',  sid, '2026-04-25', '11:00', '12:30', ''],
+    [t.u11b, eagleUnitedId, 'Evergreen',       sid, '2026-04-25', '09:00', '10:30', ''],
+    [t.u13b, phoenixSCId,   'Evergreen',       sid, '2026-04-25', '12:00', '13:30', ''],
+  ];
+  springGames.forEach(g => gameStmt.run(...g));
+  console.log(`Inserted ${springGames.length} Spring '26 games.`);
 
   // Grant permissions to seeded users (admin bypasses permission checks automatically)
   grantCoachPermissions(coach1.lastInsertRowid);
