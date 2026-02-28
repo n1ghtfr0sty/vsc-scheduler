@@ -42,6 +42,11 @@ class Calendar {
     this.currentDate.setDate(this.currentDate.getDate() - 7);
     this.render();
   }
+
+  nextWeek() {
+    this.currentDate.setDate(this.currentDate.getDate() + 7);
+    this.render();
+  }
   
   getWeekStart(date) {
     const d = new Date(date);
