@@ -831,10 +831,13 @@ const App = {
             <tbody>
               ${data.players.map(p => `
                 <tr>
-                  <td>${p.name}</td>
+                  <td><a href="#/players/${p.id}" class="link">${p.name}</a></td>
                   <td>${p.birth_date || 'N/A'}</td>
-                  <td>${p.family_name || 'N/A'}</td>
-                  <td>${p.teams || 'None'}</td>
+                  <td>${p.family_id && Auth.can('families', 'view') ? `<a href="#/families/${p.family_id}" class="link">${p.family_name}</a>` : (p.family_name || 'N/A')}</td>
+                  <td>${p.teams ? p.teams.split(',').map(t => {
+        const [tid, tname] = t.split(':');
+        return `<a href="#/teams/${tid}" class="link">${tname}</a>`;
+      }).join(', ') : 'None'}</td>
                   <td class="actions">
                     ${Auth.can('players', 'edit') ? `<button class="btn btn-outline" onclick="App.showPlayerForm(${p.id})">Edit</button>` : ''}
                     ${Auth.can('players', 'delete') ? `<button class="btn btn-danger" onclick="App.deletePlayer(${p.id})">Delete</button>` : ''}
@@ -1347,7 +1350,7 @@ const App = {
               ${data.families.map(f => `
                 <tr>
                   <td><a href="#/families/${f.id}" class="link">${f.name}</a></td>
-                  <td>${f.email || 'N/A'}</td>
+                  <td>${f.email ? `<a href="mailto:${f.email}" class="link">${f.email}</a>` : 'N/A'}</td>
                   <td>${f.user_name || 'N/A'}</td>
                 </tr>
               `).join('')}
@@ -1393,9 +1396,12 @@ const App = {
               ${coachesData.coaches.map(c => `
                 <tr>
                   <td><a href="#/coaches/${c.id}" class="link">${c.name}</a></td>
-                  <td>${c.email || 'N/A'}</td>
-                  <td>${c.phone || 'N/A'}</td>
-                  <td>${c.teams || 'None'}</td>
+                  <td>${c.email ? `<a href="mailto:${c.email}" class="link">${c.email}</a>` : 'N/A'}</td>
+                  <td>${c.phone ? `<a href="tel:${c.phone}" class="link">${c.phone}</a>` : 'N/A'}</td>
+                  <td>${c.teams ? c.teams.split(',').map(t => {
+        const [tid, tname] = t.split(':');
+        return `<a href="#/teams/${tid}" class="link">${tname}</a>`;
+      }).join(', ') : 'None'}</td>
                   <td class="actions">
                     <button class="btn btn-outline" onclick="App.showCoachForm(${c.id})">Edit</button>
                     <button class="btn btn-danger" onclick="App.deleteCoach(${c.id})">Delete</button>
