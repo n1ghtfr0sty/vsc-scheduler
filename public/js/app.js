@@ -22,10 +22,12 @@ const App = {
     Router.route('/players', () => this.renderPlayers());
     Router.route('/players/:id', (params) => this.renderPlayerDetail(params.id));
     Router.route('/opponents', () => this.renderOpponents());
+    Router.route('/opponents/:id', (params) => this.renderOpponentDetail(params.id));
     Router.route('/seasons', () => this.renderSeasons());
     Router.route('/families', () => this.renderFamilies());
     Router.route('/families/:id', (params) => this.renderFamilyDetail(params.id));
     Router.route('/coaches', () => this.renderCoaches());
+    Router.route('/coaches/:id', (params) => this.renderCoachDetail(params.id));
     Router.route('/settings', () => this.renderSettings());
     Router.route('/users', () => this.renderUsers());
   },
@@ -213,7 +215,7 @@ const App = {
           </div>
         ` : ''}
       `;
-      
+
       const calendarContainer = document.getElementById('calendarContainer');
       console.log('Calendar container:', calendarContainer);
       console.log('Calendar class:', window.Calendar);
@@ -310,8 +312,8 @@ const App = {
         ${dayGames.map(game => `
           <div class="game-card">
             <div class="game-date">${game.start_time} - ${game.end_time}</div>
-            <div class="game-teams">${game.team_name} vs ${game.opponent_name}</div>
-            <div class="game-location">${game.location || 'TBD'}</div>
+            <div class="game-teams"><a href="#/teams/${game.team_id}" class="link">${game.team_name}</a> vs <a href="#/opponents/${game.opponent_id}" class="link">${game.opponent_name}</a></div>
+            <div class="game-location">${game.location ? `<a href="https://maps.google.com/?q=${encodeURIComponent(game.location)}" target="_blank" class="link">${game.location}</a>` : 'TBD'}</div>
             ${game.notes ? `<div class="game-notes">${game.notes}</div>` : ''}
             ${game.season_name ? `<div class="game-date">${game.season_name}</div>` : ''}
           </div>
@@ -368,12 +370,12 @@ const App = {
                 <tr>
                   <td>${game.game_date}</td>
                   <td>${game.start_time} - ${game.end_time}</td>
-                  <td>${game.team_name}</td>
-                  <td>${game.opponent_name}</td>
-                  <td>${game.location || 'TBD'}</td>
+                  <td><a href="#/teams/${game.team_id}" class="link">${game.team_name}</a></td>
+                  <td><a href="#/opponents/${game.opponent_id}" class="link">${game.opponent_name}</a></td>
+                  <td>${game.location ? `<a href="https://maps.google.com/?q=${encodeURIComponent(game.location)}" target="_blank" class="link">${game.location}</a>` : 'TBD'}</td>
                   <td>${game.season_name || 'N/A'}</td>
                   <td class="actions">
-                    ${Auth.can('games', 'edit')   ? `<button class="btn btn-outline" onclick="Router.navigate('/games/${game.id}/edit')">Edit</button>` : ''}
+                    ${Auth.can('games', 'edit') ? `<button class="btn btn-outline" onclick="Router.navigate('/games/${game.id}/edit')">Edit</button>` : ''}
                     ${Auth.can('games', 'delete') ? `<button class="btn btn-danger" onclick="App.deleteGame(${game.id})">Delete</button>` : ''}
                   </td>
                 </tr>
@@ -627,12 +629,15 @@ const App = {
             <tbody>
               ${data.teams.map(team => `
                 <tr>
-                  <td>${team.name}</td>
+                  <td><a href="#/teams/${team.id}" class="link">${team.name}</a></td>
                   <td>${team.age_group || 'N/A'}</td>
-                  <td>${team.coaches || 'None'}</td>
+                  <td>${team.coaches ? team.coaches.split(',').map(c => {
+        const [cid, cname] = c.split(':');
+        return `<a href="#/coaches/${cid}" class="link">${cname}</a>`;
+      }).join(', ') : 'None'}</td>
                   <td class="actions">
                     <button class="btn btn-outline" onclick="Router.navigate('/teams/${team.id}')">View</button>
-                    ${Auth.can('teams', 'edit')   ? `<button class="btn btn-outline" onclick="App.showTeamForm(${team.id})">Edit</button>` : ''}
+                    ${Auth.can('teams', 'edit') ? `<button class="btn btn-outline" onclick="App.showTeamForm(${team.id})">Edit</button>` : ''}
                     ${Auth.can('teams', 'delete') ? `<button class="btn btn-danger" onclick="App.deleteTeam(${team.id})">Delete</button>` : ''}
                   </td>
                 </tr>
@@ -690,9 +695,9 @@ const App = {
                   <td><a href="#/players/${p.id}" class="link">${p.name}</a></td>
                   <td>${p.birth_date || 'N/A'}</td>
                   <td>${Auth.can('families', 'view')
-                    ? `<a href="#/families/${p.family_id}" class="link">${p.family_name || 'N/A'}</a>`
-                    : (p.family_name || 'N/A')
-                  }</td>
+          ? `<a href="#/families/${p.family_id}" class="link">${p.family_name || 'N/A'}</a>`
+          : (p.family_name || 'N/A')
+        }</td>
                 </tr>
               `).join('')}
             </tbody>
@@ -756,7 +761,7 @@ const App = {
       try {
         if (editId) {
           await API.teams.update(editId, data);
-          
+
           const currentCoachIds = currentCoaches.map(Number);
           const toAdd = selectedCoaches.filter(id => !currentCoachIds.includes(id));
           const toRemove = currentCoachIds.filter(id => !selectedCoaches.includes(id));
@@ -772,7 +777,7 @@ const App = {
               method: 'DELETE'
             });
           }
-          
+
           this.showToast('Team updated', 'success');
         } else {
           await API.teams.create(data);
@@ -831,7 +836,7 @@ const App = {
                   <td>${p.family_name || 'N/A'}</td>
                   <td>${p.teams || 'None'}</td>
                   <td class="actions">
-                    ${Auth.can('players', 'edit')   ? `<button class="btn btn-outline" onclick="App.showPlayerForm(${p.id})">Edit</button>` : ''}
+                    ${Auth.can('players', 'edit') ? `<button class="btn btn-outline" onclick="App.showPlayerForm(${p.id})">Edit</button>` : ''}
                     ${Auth.can('players', 'delete') ? `<button class="btn btn-danger" onclick="App.deletePlayer(${p.id})">Delete</button>` : ''}
                   </td>
                 </tr>
@@ -856,9 +861,9 @@ const App = {
 
       const teamLinks = player.teams
         ? player.teams.split(',').map(t => {
-            const [tid, tname] = t.split(':');
-            return `<a href="#/teams/${tid}" class="link">${tname}</a>`;
-          }).join(', ')
+          const [tid, tname] = t.split(':');
+          return `<a href="#/teams/${tid}" class="link">${tname}</a>`;
+        }).join(', ')
         : 'None';
 
       main.innerHTML = `
@@ -912,20 +917,20 @@ const App = {
             </thead>
             <tbody>
               ${players.map(p => {
-                const teamLinks = p.teams
-                  ? p.teams.split(',').map(t => {
-                      const [tid, tname] = t.split(':');
-                      return `<a href="#/teams/${tid}" class="link">${tname}</a>`;
-                    }).join(', ')
-                  : 'None';
-                return `
+        const teamLinks = p.teams
+          ? p.teams.split(',').map(t => {
+            const [tid, tname] = t.split(':');
+            return `<a href="#/teams/${tid}" class="link">${tname}</a>`;
+          }).join(', ')
+          : 'None';
+        return `
                   <tr>
                     <td><a href="#/players/${p.id}" class="link">${p.name}</a></td>
                     <td>${p.birth_date || 'N/A'}</td>
                     <td>${teamLinks}</td>
                   </tr>
                 `;
-              }).join('')}
+      }).join('')}
             </tbody>
           </table>
           ${players.length === 0 ? '<p class="empty-state">No players in this family</p>' : ''}
@@ -1039,11 +1044,11 @@ const App = {
             <tbody>
               ${data.opponents.map(o => `
                 <tr>
-                  <td>${o.name}</td>
+                  <td><a href="#/opponents/${o.id}" class="link">${o.name}</a></td>
                   <td>${o.contact_name || 'N/A'}</td>
                   <td>${o.phone || 'N/A'}</td>
-                  <td>${o.email || 'N/A'}</td>
-                  <td>${o.location || 'N/A'}</td>
+                  <td>${o.email ? `<a href="mailto:${o.email}" class="link">${o.email}</a>` : 'N/A'}</td>
+                  <td>${o.location ? `<a href="https://maps.google.com/?q=${encodeURIComponent(o.location)}" target="_blank" class="link">${o.location}</a>` : 'N/A'}</td>
                   <td class="actions">
                     <button class="btn btn-outline" onclick="App.showOpponentForm(${o.id})">Edit</button>
                     ${Auth.isAdmin() ? `
@@ -1135,6 +1140,61 @@ const App = {
     }
   },
 
+  async renderOpponentDetail(id) {
+    if (!Auth.requireAuth()) return;
+
+    const main = document.getElementById('main');
+    main.innerHTML = '<div class="loading">Loading...</div>';
+
+    try {
+      const data = await API.request(`/api/opponents/${id}`);
+      const { opponent, games } = data;
+
+      main.innerHTML = `
+        <div class="header-actions">
+          <h1>${opponent.name}</h1>
+          <div>
+            ${Auth.can('opponents', 'edit') ? `<button class="btn btn-outline" onclick="App.showOpponentForm(${opponent.id})">Edit</button>` : ''}
+            <button class="btn btn-outline" onclick="Router.navigate('/opponents')">Back to Opponents</button>
+          </div>
+        </div>
+        <div class="card">
+          <h2>Contact Info</h2>
+          <p><strong>Contact Name:</strong> ${opponent.contact_name || 'N/A'}</p>
+          <p><strong>Phone:</strong> ${opponent.phone || 'N/A'}</p>
+          <p><strong>Email:</strong> ${opponent.email ? `<a href="mailto:${opponent.email}" class="link">${opponent.email}</a>` : 'N/A'}</p>
+          <p><strong>Location:</strong> ${opponent.location ? `<a href="https://maps.google.com/?q=${encodeURIComponent(opponent.location)}" target="_blank" class="link">${opponent.location}</a>` : 'N/A'}</p>
+        </div>
+        <div class="card">
+          <h2>Scheduled Games</h2>
+          <table>
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Time</th>
+                <th>Our Team</th>
+                <th>Season</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${games.map(g => `
+                <tr>
+                  <td>${g.game_date}</td>
+                  <td>${g.start_time} - ${g.end_time}</td>
+                  <td><a href="#/teams/${g.team_id}" class="link">${g.team_name}</a></td>
+                  <td>${g.season_name || 'N/A'}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+          ${games.length === 0 ? '<p class="empty-state">No games scheduled against this opponent</p>' : ''}
+        </div>
+      `;
+    } catch (err) {
+      main.innerHTML = `<div class="alert alert-danger">${err.message}</div>`;
+    }
+  },
+
   async renderSeasons() {
     if (!Auth.requireAuth()) return;
 
@@ -1170,7 +1230,7 @@ const App = {
                   <td>${s.start_date || 'N/A'}</td>
                   <td>${s.end_date || 'N/A'}</td>
                   <td class="actions">
-                    ${Auth.can('seasons', 'edit')   ? `<button class="btn btn-outline" onclick="App.showSeasonForm(${s.id})">Edit</button>` : ''}
+                    ${Auth.can('seasons', 'edit') ? `<button class="btn btn-outline" onclick="App.showSeasonForm(${s.id})">Edit</button>` : ''}
                     ${Auth.can('seasons', 'delete') ? `<button class="btn btn-danger" onclick="App.deleteSeason(${s.id})">Delete</button>` : ''}
                   </td>
                 </tr>
@@ -1286,7 +1346,7 @@ const App = {
             <tbody>
               ${data.families.map(f => `
                 <tr>
-                  <td>${f.name}</td>
+                  <td><a href="#/families/${f.id}" class="link">${f.name}</a></td>
                   <td>${f.email || 'N/A'}</td>
                   <td>${f.user_name || 'N/A'}</td>
                 </tr>
@@ -1332,7 +1392,7 @@ const App = {
             <tbody>
               ${coachesData.coaches.map(c => `
                 <tr>
-                  <td>${c.name}</td>
+                  <td><a href="#/coaches/${c.id}" class="link">${c.name}</a></td>
                   <td>${c.email || 'N/A'}</td>
                   <td>${c.phone || 'N/A'}</td>
                   <td>${c.teams || 'None'}</td>
@@ -1418,6 +1478,44 @@ const App = {
       this.renderCoaches();
     } catch (err) {
       this.showToast(err.message, 'error');
+    }
+  },
+
+  async renderCoachDetail(id) {
+    if (!Auth.requireAuth()) return;
+
+    const main = document.getElementById('main');
+    main.innerHTML = '<div class="loading">Loading...</div>';
+
+    try {
+      const data = await API.request(`/api/coaches/${id}`);
+      const { coach } = data;
+
+      const teamLinks = coach.teams
+        ? coach.teams.split(',').map(t => {
+          const [tid, tname] = t.split(':');
+          return `<a href="#/teams/${tid}" class="link">${tname}</a>`;
+        }).join(', ')
+        : 'None';
+
+      main.innerHTML = `
+        <div class="header-actions">
+          <h1>${coach.name}</h1>
+          <div>
+            ${Auth.can('coaches', 'edit') ? `<button class="btn btn-outline" onclick="App.showCoachForm(${coach.id})">Edit</button>` : ''}
+            <button class="btn btn-outline" onclick="Router.navigate('/coaches')">Back to Coaches</button>
+          </div>
+        </div>
+        <div class="card">
+          <h2>Coach Info</h2>
+          <p><strong>Phone:</strong> ${coach.phone || 'N/A'}</p>
+          <p><strong>Email:</strong> ${coach.email ? `<a href="mailto:${coach.email}" class="link">${coach.email}</a>` : 'N/A'}</p>
+          <p><strong>User Account:</strong> ${coach.user_name || 'N/A'}</p>
+          <p><strong>Teams Assigned:</strong> ${teamLinks}</p>
+        </div>
+      `;
+    } catch (err) {
+      main.innerHTML = `<div class="alert alert-danger">${err.message}</div>`;
     }
   },
 
@@ -1573,7 +1671,7 @@ const App = {
           <button class="btn btn-outline" onclick="closeModal()">Close</button>
         </div>
       `;
-      
+
       this.showModal('Game Details', content);
     } catch (err) {
       this.showToast(err.message, 'error');
@@ -1589,16 +1687,16 @@ const App = {
     main.innerHTML = '<div class="loading">Loading...</div>';
 
     const RESOURCES = ['games', 'players', 'families', 'coaches', 'teams', 'opponents', 'seasons', 'settings', 'users'];
-    const ACTIONS   = ['view', 'create', 'edit', 'delete'];
-    const ROLES     = ['admin', 'coach', 'family', 'pending'];
+    const ACTIONS = ['view', 'create', 'edit', 'delete'];
+    const ROLES = ['admin', 'coach', 'family', 'pending'];
 
     try {
       const { users } = await API.users.getAll();
 
       // Separate pending users to highlight them at the top
       const pending = users.filter(u => u.role === 'pending');
-      const active  = users.filter(u => u.role !== 'pending');
-      const sorted  = [...pending, ...active];
+      const active = users.filter(u => u.role !== 'pending');
+      const sorted = [...pending, ...active];
 
       main.innerHTML = `
         <h1>User Management</h1>
@@ -1678,8 +1776,8 @@ const App = {
   // Read all permission checkboxes for a user and save them in one call
   async saveUserPermissions(userId) {
     const card = document.querySelector(`[data-user-id="${userId}"]`)?.closest('.card')
-               || document.querySelector(`.card[data-user-id="${userId}"]`)
-               || Array.from(document.querySelectorAll('.card')).find(c => c.dataset.userId == userId);
+      || document.querySelector(`.card[data-user-id="${userId}"]`)
+      || Array.from(document.querySelectorAll('.card')).find(c => c.dataset.userId == userId);
     if (!card) return;
 
     const permissions = {};

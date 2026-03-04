@@ -23,10 +23,34 @@ router.get('/', requirePermission('coaches', 'view'), (req, res) => {
   }
 });
 
+router.get('/:id', requirePermission('coaches', 'view'), (req, res) => {
+  try {
+    const { id } = req.params;
+    const coach = db.prepare(`
+      SELECT c.*, u.email, u.name as user_name,
+        GROUP_CONCAT(t.id || ':' || t.name) as teams
+      FROM coaches c
+      JOIN users u ON c.user_id = u.id
+      LEFT JOIN team_coaches tc ON c.id = tc.coach_id
+      LEFT JOIN teams t ON tc.team_id = t.id
+      WHERE c.id = ?
+      GROUP BY c.id
+    `).get(id);
+
+    if (!coach) {
+      return res.status(404).json({ error: 'Coach not found' });
+    }
+    res.json({ coach });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to fetch coach' });
+  }
+});
+
 router.post('/', requirePermission('coaches', 'create'), (req, res) => {
   try {
     const { user_id, name, phone } = req.body;
-    
+
     if (!user_id || !name) {
       return res.status(400).json({ error: 'User ID and name are required' });
     }
@@ -78,11 +102,11 @@ router.delete('/:id', requirePermission('coaches', 'delete'), (req, res) => {
   try {
     const { id } = req.params;
     const coach = db.prepare('SELECT * FROM coaches WHERE id = ?').get(id);
-    
+
     if (coach) {
       db.prepare('UPDATE users SET role = ? WHERE id = ?').run('family', coach.user_id);
     }
-    
+
     db.prepare('DELETE FROM coaches WHERE id = ?').run(id);
     res.json({ message: 'Coach deleted' });
   } catch (err) {

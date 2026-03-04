@@ -14,10 +14,35 @@ router.get('/', requirePermission('opponents', 'view'), (req, res) => {
   }
 });
 
+router.get('/:id', requirePermission('opponents', 'view'), (req, res) => {
+  try {
+    const { id } = req.params;
+    const opponent = db.prepare('SELECT * FROM opponents WHERE id = ?').get(id);
+    if (!opponent) {
+      return res.status(404).json({ error: 'Opponent not found' });
+    }
+
+    // Also fetch games scheduled against this opponent
+    const games = db.prepare(`
+      SELECT g.*, t.name as team_name, s.name as season_name
+      FROM games g
+      JOIN teams t ON g.team_id = t.id
+      LEFT JOIN seasons s ON g.season_id = s.id
+      WHERE g.opponent_id = ?
+      ORDER BY g.game_date, g.start_time
+    `).all(id);
+
+    res.json({ opponent, games });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to fetch opponent' });
+  }
+});
+
 router.post('/', requirePermission('opponents', 'create'), (req, res) => {
   try {
     const { name, contact_name, phone, email, location } = req.body;
-    
+
     if (!name) {
       return res.status(400).json({ error: 'Name is required' });
     }
