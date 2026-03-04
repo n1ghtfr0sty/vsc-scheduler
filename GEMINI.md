@@ -35,7 +35,7 @@ This file provides context and instructions for Gemini CLI when working in the V
 
 ### Frontend (`/public`)
 - **Entry Point:** `index.html` loads all scripts and serves as the SPA container.
-- **Routing:** Hash-based routing managed by `window.Router` in `js/router.js`.
+- **Routing:** Hash-based routing managed by `window.Router` in `js/router.js`. Includes entity detail routes (`#/teams/:id`, `#/players/:id`, `#/families/:id`, `#/coaches/:id`, `#/opponents/:id`).
 - **API Communication:** `window.API` in `js/api.js` provides a fetch wrapper.
 - **State Management:** `window.Auth` in `js/auth.js` manages user sessions and permissions.
 - **View Logic:** `window.App` in `js/app.js` contains most of the rendering and event handling logic.
