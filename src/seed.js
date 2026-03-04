@@ -1,11 +1,11 @@
 const { getDb } = require('./db');
-const bcrypt = require('bcryptjs');
+const bcrypt = require('bcrypt');
 
 async function main() {
   const db = await getDb();
 
   console.log('Creating schema...');
-  
+
   db.exec(`
     CREATE TABLE IF NOT EXISTS users (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -184,7 +184,7 @@ async function main() {
   // U6-U8 Boys (8 players) - 2 families with 4 players each
   const u6B1 = createFamily('family.anderson@vsc.com', 'Anderson Family', '555-0201');
   const u6B2 = createFamily('family.baker@vsc.com', 'Baker Family', '555-0202');
-  
+
   assignPlayerToTeam(createPlayer(u6B1.familyId, 'James Anderson', '2019-03-15'), teamU6Boys.lastInsertRowid);
   assignPlayerToTeam(createPlayer(u6B1.familyId, 'Oliver Anderson', '2020-06-20'), teamU6Boys.lastInsertRowid);
   assignPlayerToTeam(createPlayer(u6B1.familyId, 'Ethan Anderson', '2021-01-10'), teamU6Boys.lastInsertRowid);
@@ -197,7 +197,7 @@ async function main() {
   // U6-U8 Girls (8 players) - 2 families with 4 players each
   const u6G1 = createFamily('family.clark@vsc.com', 'Clark Family', '555-0203');
   const u6G2 = createFamily('family.davis@vsc.com', 'Davis Family', '555-0204');
-  
+
   assignPlayerToTeam(createPlayer(u6G1.familyId, 'Emma Clark', '2019-04-08'), teamU6Girls.lastInsertRowid);
   assignPlayerToTeam(createPlayer(u6G1.familyId, 'Ava Clark', '2020-09-15'), teamU6Girls.lastInsertRowid);
   assignPlayerToTeam(createPlayer(u6G1.familyId, 'Sophia Clark', '2021-02-28'), teamU6Girls.lastInsertRowid);
@@ -211,7 +211,7 @@ async function main() {
   const u9B1 = createFamily('family.evans@vsc.com', 'Evans Family', '555-0205');
   const u9B2 = createFamily('family.frank@vsc.com', 'Frank Family', '555-0206');
   const u9B3 = createFamily('family.green@vsc.com', 'Green Family', '555-0207');
-  
+
   assignPlayerToTeam(createPlayer(u9B1.familyId, 'William Evans', '2016-01-15'), teamU9Boys.lastInsertRowid);
   assignPlayerToTeam(createPlayer(u9B1.familyId, 'Benjamin Evans', '2016-08-22'), teamU9Boys.lastInsertRowid);
   assignPlayerToTeam(createPlayer(u9B1.familyId, 'Henry Evans', '2017-04-10'), teamU9Boys.lastInsertRowid);
@@ -229,7 +229,7 @@ async function main() {
   const u9G1 = createFamily('family.harris@vsc.com', 'Harris Family', '555-0208');
   const u9G2 = createFamily('family.jackson@vsc.com', 'Jackson Family', '555-0209');
   const u9G3 = createFamily('family.king@vsc.com', 'King Family', '555-0210');
-  
+
   assignPlayerToTeam(createPlayer(u9G1.familyId, 'Abigail Harris', '2016-02-10'), teamU9Girls.lastInsertRowid);
   assignPlayerToTeam(createPlayer(u9G1.familyId, 'Emily Harris', '2016-07-18'), teamU9Girls.lastInsertRowid);
   assignPlayerToTeam(createPlayer(u9G1.familyId, 'Elizabeth Harris', '2017-03-25'), teamU9Girls.lastInsertRowid);
@@ -248,7 +248,7 @@ async function main() {
   const u11B2 = createFamily('family.martin@vsc.com', 'Martin Family', '555-0212');
   const u11B3 = createFamily('family.thompson@vsc.com', 'Thompson Family', '555-0213');
   const u11B4 = createFamily('family.white@vsc.com', 'White Family', '555-0214');
-  
+
   assignPlayerToTeam(createPlayer(u11B1.familyId, 'Jacob Lee', '2014-01-08'), teamU11Boys.lastInsertRowid);
   assignPlayerToTeam(createPlayer(u11B1.familyId, 'Logan Lee', '2014-06-15'), teamU11Boys.lastInsertRowid);
   assignPlayerToTeam(createPlayer(u11B1.familyId, 'Isaac Lee', '2015-02-22'), teamU11Boys.lastInsertRowid);
@@ -269,7 +269,7 @@ async function main() {
   const u11G2 = createFamily('family.allen@vsc.com', 'Allen Family', '555-0216');
   const u11G3 = createFamily('family.young@vsc.com', 'Young Family', '555-0217');
   const u11G4 = createFamily('family.king.vsc@email', 'King Girls Family', '555-0218');
-  
+
   assignPlayerToTeam(createPlayer(u11G1.familyId, 'Natalie Hall', '2014-02-14'), teamU11Girls.lastInsertRowid);
   assignPlayerToTeam(createPlayer(u11G1.familyId, 'Hannah Hall', '2014-08-22'), teamU11Girls.lastInsertRowid);
   assignPlayerToTeam(createPlayer(u11G1.familyId, 'Addison Hall', '2015-04-05'), teamU11Girls.lastInsertRowid);
@@ -291,7 +291,7 @@ async function main() {
   const u13B3 = createFamily('family.scott@vsc.com', 'Scott Family', '555-0221');
   const u13B4 = createFamily('family.adams@vsc.com', 'Adams Family', '555-0222');
   const u13B5 = createFamily('family.nelson@vsc.com', 'Nelson Family', '555-0223');
-  
+
   assignPlayerToTeam(createPlayer(u13B1.familyId, 'Tyler Robinson', '2012-01-10'), teamU13Boys.lastInsertRowid);
   assignPlayerToTeam(createPlayer(u13B1.familyId, 'Brandon Robinson', '2012-07-22'), teamU13Boys.lastInsertRowid);
   assignPlayerToTeam(createPlayer(u13B1.familyId, 'Austin Robinson', '2013-02-15'), teamU13Boys.lastInsertRowid);
@@ -317,7 +317,7 @@ async function main() {
   const u13G3 = createFamily('family.perez@vsc.com', 'Perez Family', '555-0226');
   const u13G4 = createFamily('family.roberts@vsc.com', 'Roberts Family', '555-0227');
   const u13G5 = createFamily('family.turner@vsc.com', 'Turner Family', '555-0228');
-  
+
   assignPlayerToTeam(createPlayer(u13G1.familyId, 'Lauren Carter', '2012-02-08'), teamU13Girls.lastInsertRowid);
   assignPlayerToTeam(createPlayer(u13G1.familyId, 'Ashley Carter', '2012-08-15'), teamU13Girls.lastInsertRowid);
   assignPlayerToTeam(createPlayer(u13G1.familyId, 'Stephanie Carter', '2013-03-22'), teamU13Girls.lastInsertRowid);
@@ -365,29 +365,29 @@ async function main() {
   // Default coach permissions: can manage games and opponents for their teams,
   // read-only access to everything else
   function grantCoachPermissions(userId) {
-    grantPermission(userId, 'games',     true,  true,  true,  true);
-    grantPermission(userId, 'teams',     true,  false, true,  false);
-    grantPermission(userId, 'players',   true,  false, false, false);
-    grantPermission(userId, 'families',  true,  false, false, false);
-    grantPermission(userId, 'coaches',   true,  false, false, false);
-    grantPermission(userId, 'opponents', true,  true,  true,  false);
-    grantPermission(userId, 'seasons',   true,  false, false, false);
-    grantPermission(userId, 'settings',  true,  false, false, false);
-    grantPermission(userId, 'users',     false, false, false, false);
+    grantPermission(userId, 'games', true, true, true, true);
+    grantPermission(userId, 'teams', true, false, true, false);
+    grantPermission(userId, 'players', true, false, false, false);
+    grantPermission(userId, 'families', true, false, false, false);
+    grantPermission(userId, 'coaches', true, false, false, false);
+    grantPermission(userId, 'opponents', true, true, true, false);
+    grantPermission(userId, 'seasons', true, false, false, false);
+    grantPermission(userId, 'settings', true, false, false, false);
+    grantPermission(userId, 'users', false, false, false, false);
   }
 
   // Default family permissions: read-only schedule access, can edit their own
   // players and family record (ownership enforced at the route level)
   function grantFamilyPermissions(userId) {
-    grantPermission(userId, 'games',     true,  false, false, false);
-    grantPermission(userId, 'teams',     true,  false, false, false);
-    grantPermission(userId, 'players',   true,  true,  true,  false);
-    grantPermission(userId, 'families',  true,  false, true,  false);
-    grantPermission(userId, 'coaches',   true,  false, false, false);
-    grantPermission(userId, 'opponents', true,  false, false, false);
-    grantPermission(userId, 'seasons',   true,  false, false, false);
-    grantPermission(userId, 'settings',  true,  false, false, false);
-    grantPermission(userId, 'users',     false, false, false, false);
+    grantPermission(userId, 'games', true, false, false, false);
+    grantPermission(userId, 'teams', true, false, false, false);
+    grantPermission(userId, 'players', true, true, true, false);
+    grantPermission(userId, 'families', true, false, true, false);
+    grantPermission(userId, 'coaches', true, false, false, false);
+    grantPermission(userId, 'opponents', true, false, false, false);
+    grantPermission(userId, 'seasons', true, false, false, false);
+    grantPermission(userId, 'settings', true, false, false, false);
+    grantPermission(userId, 'users', false, false, false, false);
   }
 
   // Opponents
@@ -445,10 +445,10 @@ async function main() {
   const sid = season3.lastInsertRowid;
   const gameStmt = db.prepare(`INSERT INTO games (team_id, opponent_id, location, season_id, game_date, start_time, end_time, notes) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`);
   const t = {
-    u6b:  teamU6Boys.lastInsertRowid,
-    u6g:  teamU6Girls.lastInsertRowid,
-    u9b:  teamU9Boys.lastInsertRowid,
-    u9g:  teamU9Girls.lastInsertRowid,
+    u6b: teamU6Boys.lastInsertRowid,
+    u6g: teamU6Girls.lastInsertRowid,
+    u9b: teamU9Boys.lastInsertRowid,
+    u9g: teamU9Girls.lastInsertRowid,
     u11b: teamU11Boys.lastInsertRowid,
     u11g: teamU11Girls.lastInsertRowid,
     u13b: teamU13Boys.lastInsertRowid,
@@ -456,45 +456,45 @@ async function main() {
   };
   const springGames = [
     // Mar 7 — Pattern A (Coach Mike + Coach Lisa)
-    [t.u6b,  rocketsFCId,   'Evergreen',       sid, '2026-03-07', '09:00', '10:00', 'Spring opener'],
-    [t.u9b,  unitedFCId,    'United Park',     sid, '2026-03-07', '11:00', '12:30', ''],
-    [t.u11g, starsSCId,     'Stars Arena',     sid, '2026-03-07', '09:00', '10:30', ''],
-    [t.u13g, eagleUnitedId, 'Evergreen',       sid, '2026-03-07', '12:00', '13:30', ''],
+    [t.u6b, rocketsFCId, 'Evergreen', sid, '2026-03-07', '09:00', '10:00', 'Spring opener'],
+    [t.u9b, unitedFCId, 'United Park', sid, '2026-03-07', '11:00', '12:30', ''],
+    [t.u11g, starsSCId, 'Stars Arena', sid, '2026-03-07', '09:00', '10:30', ''],
+    [t.u13g, eagleUnitedId, 'Evergreen', sid, '2026-03-07', '12:00', '13:30', ''],
     // Mar 14 — Pattern B (Coach Sarah + Coach Tom)
-    [t.u6g,  rocketsFCId,   'Rockets Field',   sid, '2026-03-14', '09:00', '10:00', ''],
-    [t.u9g,  phoenixSCId,   'Phoenix Grounds', sid, '2026-03-14', '11:00', '12:30', ''],
-    [t.u11b, warriorsFCId,  'Warrior Field',   sid, '2026-03-14', '09:00', '10:30', ''],
-    [t.u13b, lightningSCId, 'Evergreen',       sid, '2026-03-14', '12:00', '13:30', ''],
+    [t.u6g, rocketsFCId, 'Rockets Field', sid, '2026-03-14', '09:00', '10:00', ''],
+    [t.u9g, phoenixSCId, 'Phoenix Grounds', sid, '2026-03-14', '11:00', '12:30', ''],
+    [t.u11b, warriorsFCId, 'Warrior Field', sid, '2026-03-14', '09:00', '10:30', ''],
+    [t.u13b, lightningSCId, 'Evergreen', sid, '2026-03-14', '12:00', '13:30', ''],
     // Mar 21 — Pattern A
-    [t.u6b,  unitedFCId,    'United Park',     sid, '2026-03-21', '09:00', '10:00', ''],
-    [t.u9b,  starsSCId,     'Evergreen',       sid, '2026-03-21', '11:00', '12:30', ''],
-    [t.u11g, thunderFCId,   'Evergreen',       sid, '2026-03-21', '09:00', '10:30', ''],
-    [t.u13g, phoenixSCId,   'Phoenix Grounds', sid, '2026-03-21', '12:00', '13:30', ''],
+    [t.u6b, unitedFCId, 'United Park', sid, '2026-03-21', '09:00', '10:00', ''],
+    [t.u9b, starsSCId, 'Evergreen', sid, '2026-03-21', '11:00', '12:30', ''],
+    [t.u11g, thunderFCId, 'Evergreen', sid, '2026-03-21', '09:00', '10:30', ''],
+    [t.u13g, phoenixSCId, 'Phoenix Grounds', sid, '2026-03-21', '12:00', '13:30', ''],
     // Mar 28 — Pattern B
-    [t.u6g,  eagleUnitedId, 'Evergreen',       sid, '2026-03-28', '09:00', '10:00', ''],
-    [t.u9g,  warriorsFCId,  'Evergreen',       sid, '2026-03-28', '11:00', '12:30', ''],
-    [t.u11b, lightningSCId, 'Lightning Park',  sid, '2026-03-28', '09:00', '10:30', ''],
-    [t.u13b, thunderFCId,   'Thunder Arena',   sid, '2026-03-28', '12:00', '13:30', ''],
+    [t.u6g, eagleUnitedId, 'Evergreen', sid, '2026-03-28', '09:00', '10:00', ''],
+    [t.u9g, warriorsFCId, 'Evergreen', sid, '2026-03-28', '11:00', '12:30', ''],
+    [t.u11b, lightningSCId, 'Lightning Park', sid, '2026-03-28', '09:00', '10:30', ''],
+    [t.u13b, thunderFCId, 'Thunder Arena', sid, '2026-03-28', '12:00', '13:30', ''],
     // Apr 4 — Pattern A
-    [t.u6b,  phoenixSCId,   'Phoenix Grounds', sid, '2026-04-04', '09:00', '10:00', ''],
-    [t.u9b,  eagleUnitedId, 'Evergreen',       sid, '2026-04-04', '11:00', '12:30', ''],
-    [t.u11g, rocketsFCId,   'Rockets Field',   sid, '2026-04-04', '09:00', '10:30', ''],
-    [t.u13g, warriorsFCId,  'Warrior Field',   sid, '2026-04-04', '12:00', '13:30', ''],
+    [t.u6b, phoenixSCId, 'Phoenix Grounds', sid, '2026-04-04', '09:00', '10:00', ''],
+    [t.u9b, eagleUnitedId, 'Evergreen', sid, '2026-04-04', '11:00', '12:30', ''],
+    [t.u11g, rocketsFCId, 'Rockets Field', sid, '2026-04-04', '09:00', '10:30', ''],
+    [t.u13g, warriorsFCId, 'Warrior Field', sid, '2026-04-04', '12:00', '13:30', ''],
     // Apr 11 — Pattern B
-    [t.u6g,  starsSCId,     'Stars Arena',     sid, '2026-04-11', '09:00', '10:00', ''],
-    [t.u9g,  thunderFCId,   'Evergreen',       sid, '2026-04-11', '11:00', '12:30', ''],
-    [t.u11b, rocketsFCId,   'Evergreen',       sid, '2026-04-11', '09:00', '10:30', ''],
-    [t.u13b, unitedFCId,    'United Park',     sid, '2026-04-11', '12:00', '13:30', ''],
+    [t.u6g, starsSCId, 'Stars Arena', sid, '2026-04-11', '09:00', '10:00', ''],
+    [t.u9g, thunderFCId, 'Evergreen', sid, '2026-04-11', '11:00', '12:30', ''],
+    [t.u11b, rocketsFCId, 'Evergreen', sid, '2026-04-11', '09:00', '10:30', ''],
+    [t.u13b, unitedFCId, 'United Park', sid, '2026-04-11', '12:00', '13:30', ''],
     // Apr 18 — Pattern A
-    [t.u6b,  warriorsFCId,  'Evergreen',       sid, '2026-04-18', '09:00', '10:00', ''],
-    [t.u9b,  lightningSCId, 'Lightning Park',  sid, '2026-04-18', '11:00', '12:30', ''],
-    [t.u11g, unitedFCId,    'Evergreen',       sid, '2026-04-18', '09:00', '10:30', ''],
-    [t.u13g, starsSCId,     'Evergreen',       sid, '2026-04-18', '12:00', '13:30', ''],
+    [t.u6b, warriorsFCId, 'Evergreen', sid, '2026-04-18', '09:00', '10:00', ''],
+    [t.u9b, lightningSCId, 'Lightning Park', sid, '2026-04-18', '11:00', '12:30', ''],
+    [t.u11g, unitedFCId, 'Evergreen', sid, '2026-04-18', '09:00', '10:30', ''],
+    [t.u13g, starsSCId, 'Evergreen', sid, '2026-04-18', '12:00', '13:30', ''],
     // Apr 25 — Pattern B
-    [t.u6g,  thunderFCId,   'Evergreen',       sid, '2026-04-25', '09:00', '10:00', ''],
-    [t.u9g,  lightningSCId, 'Lightning Park',  sid, '2026-04-25', '11:00', '12:30', ''],
-    [t.u11b, eagleUnitedId, 'Evergreen',       sid, '2026-04-25', '09:00', '10:30', ''],
-    [t.u13b, phoenixSCId,   'Evergreen',       sid, '2026-04-25', '12:00', '13:30', ''],
+    [t.u6g, thunderFCId, 'Evergreen', sid, '2026-04-25', '09:00', '10:00', ''],
+    [t.u9g, lightningSCId, 'Lightning Park', sid, '2026-04-25', '11:00', '12:30', ''],
+    [t.u11b, eagleUnitedId, 'Evergreen', sid, '2026-04-25', '09:00', '10:30', ''],
+    [t.u13b, phoenixSCId, 'Evergreen', sid, '2026-04-25', '12:00', '13:30', ''],
   ];
   springGames.forEach(g => gameStmt.run(...g));
   console.log(`Inserted ${springGames.length} Spring '26 games.`);

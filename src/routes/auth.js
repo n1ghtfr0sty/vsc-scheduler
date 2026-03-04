@@ -1,9 +1,16 @@
 const express = require('express');
-const bcrypt = require('bcryptjs');
+const bcrypt = require('bcrypt');
+const rateLimit = require('express-rate-limit');
 const db = require('../db');
 const { requireAuth } = require('../middleware/auth');
 
 const router = express.Router();
+
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 100,
+  message: { error: 'Too many login attempts, please try again after 15 minutes' }
+});
 
 // Build a formatted permissions object for a given user.
 // Returns null for admin (admin bypasses all checks on the frontend via can()).
@@ -14,16 +21,16 @@ function getUserPermissions(userId, role) {
   const permissions = {};
   rows.forEach(row => {
     permissions[row.resource] = {
-      view:   !!row.can_view,
+      view: !!row.can_view,
       create: !!row.can_create,
-      edit:   !!row.can_edit,
+      edit: !!row.can_edit,
       delete: !!row.can_delete
     };
   });
   return permissions;
 }
 
-router.post('/register', (req, res) => {
+router.post('/register', async (req, res) => {
   try {
     const { email, password, name, phone } = req.body;
 
@@ -38,7 +45,7 @@ router.post('/register', (req, res) => {
       return res.status(400).json({ error: 'Email already registered' });
     }
 
-    const passwordHash = bcrypt.hashSync(password, 10);
+    const passwordHash = await bcrypt.hash(password, 10);
 
     // All new registrations start as 'pending' — an admin must grant a role and permissions
     const result = db.prepare(
@@ -63,7 +70,7 @@ router.post('/register', (req, res) => {
   }
 });
 
-router.post('/login', (req, res) => {
+router.post('/login', loginLimiter, async (req, res) => {
   try {
     const { email, password } = req.body;
 
@@ -77,7 +84,7 @@ router.post('/login', (req, res) => {
       return res.status(401).json({ error: 'Invalid credentials' });
     }
 
-    const validPassword = bcrypt.compareSync(password, user.password_hash);
+    const validPassword = await bcrypt.compare(password, user.password_hash);
     if (!validPassword) {
       return res.status(401).json({ error: 'Invalid credentials' });
     }

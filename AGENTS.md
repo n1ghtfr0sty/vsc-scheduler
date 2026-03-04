@@ -1,5 +1,12 @@
 # VSC Scheduler - Agent Guidelines
 
+## External Memory Files
+
+Workflow preferences and session logs are maintained in:
+`C:\Users\jones\.claude\projects\D--Programming-Projects-Scheduler\memory\`
+
+Includes: workflow-preferences.md, session-log.md, debugging-lessons.md, feature-decisions.md
+
 ## Project Overview
 
 Vikings Soccer Club (VSC) Scheduler is a full-stack web application for managing youth soccer games. It helps schedule games while detecting conflicts for players, families, and coaches.
