@@ -1,7 +1,6 @@
 require('dotenv').config();
 const express = require('express');
 const session = require('express-session');
-const SQLiteStore = require('connect-sqlite3')(session);
 const path = require('path');
 
 const { getDb } = require('./db');
@@ -9,14 +8,12 @@ const { getDb } = require('./db');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// In-memory session store (works on Windows & WSL without native rebuilds)
+// For production use, switch to a persistent store (Redis, connect-sqlite3, etc.)
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 app.use(session({
-  store: new SQLiteStore({
-    dir: process.env.DB_PATH ? path.dirname(path.resolve(__dirname, '..', process.env.DB_PATH)) : path.join(__dirname, '../data'),
-    db: 'sessions.sqlite'
-  }),
   secret: process.env.SESSION_SECRET || 'vsc-scheduler-secret',
   resave: false,
   saveUninitialized: false,
