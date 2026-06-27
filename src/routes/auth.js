@@ -3,6 +3,7 @@ const bcrypt = require('bcrypt');
 const rateLimit = require('express-rate-limit');
 const db = require('../db');
 const { requireAuth } = require('../middleware/auth');
+const { generateCsrfToken } = require('../middleware/csrf');
 
 const router = express.Router();
 
@@ -55,6 +56,9 @@ router.post('/register', async (req, res) => {
     req.session.userId = result.lastInsertRowid;
     req.session.userRole = 'pending';
 
+    // Generate CSRF token for the new session
+    generateCsrfToken(req);
+
     res.json({
       user: {
         id: result.lastInsertRowid,
@@ -92,6 +96,9 @@ router.post('/login', loginLimiter, async (req, res) => {
     req.session.userId = user.id;
     req.session.userRole = user.role;
 
+    // Generate CSRF token for the session
+    generateCsrfToken(req);
+
     res.json({
       user: {
         id: user.id,
@@ -123,7 +130,8 @@ router.get('/me', requireAuth, (req, res) => {
   }
   res.json({
     user,
-    permissions: getUserPermissions(user.id, user.role)
+    permissions: getUserPermissions(user.id, user.role),
+    csrfToken: req.session?._csrf || null
   });
 });
 
