@@ -59,6 +59,14 @@ const Auth = {
     return this.currentUser?.role === 'admin';
   },
 
+  isCoach() {
+    return this.currentUser?.role === 'coach';
+  },
+
+  isFamily() {
+    return this.currentUser?.role === 'family';
+  },
+
   updateUI() {
     const navLinks = document.getElementById('navLinks');
     const navUser = document.getElementById('navUser');
@@ -78,6 +86,7 @@ const Auth = {
           ${this.can('players', 'view')  ? '<a href="#/players" data-nav="/players">Players</a>' : ''}
           ${this.can('families', 'view') ? '<a href="#/families" data-nav="/families">Families</a>' : ''}
           ${this.can('coaches', 'view')  ? '<a href="#/coaches" data-nav="/coaches">Coaches</a>' : ''}
+          ${this.can('events', 'view')  ? '<a href="#/events" data-nav="/events">Events</a>' : ''}
           ${this.can('settings', 'view') ? '<a href="#/settings" data-nav="/settings">Settings</a>' : ''}
           ${this.isAdmin()               ? '<a href="#/users" data-nav="/users">Users</a>' : ''}
         `;

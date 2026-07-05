@@ -1,3 +1,21 @@
+/**
+ * Escape user-provided strings to prevent XSS attacks.
+ * Converts HTML-special characters to their entity equivalents.
+ * Usage: element.textContent = escapeHtml(userInput);
+ */
+function escapeHtml(str) {
+  if (typeof str !== 'string') return '';
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#x27;')
+    .replace(/\//g, '&#x2F;');
+}
+
+window.escapeHtml = escapeHtml;
+
 const API = {
   async request(endpoint, options = {}) {
     const token = localStorage.getItem('token');
@@ -203,6 +221,31 @@ const API = {
     },
     async delete(id) {
       return API.request(`/api/seasons/${id}`, { method: 'DELETE' });
+    }
+  },
+
+  events: {
+    async getAll(params = {}) {
+      const query = new URLSearchParams(params).toString();
+      return API.request(`/api/events${query ? '?' + query : ''}`);
+    },
+    async getOne(id) {
+      return API.request(`/api/events/${id}`);
+    },
+    async create(data) {
+      return API.request('/api/events', {
+        method: 'POST',
+        body: JSON.stringify(data)
+      });
+    },
+    async update(id, data) {
+      return API.request(`/api/events/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(data)
+      });
+    },
+    async delete(id) {
+      return API.request(`/api/events/${id}`, { method: 'DELETE' });
     }
   },
 
