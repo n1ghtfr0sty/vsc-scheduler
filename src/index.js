@@ -130,8 +130,13 @@ async function startServer() {
   await getDb();
   console.log('Database initialized');
 
-  app.listen(PORT, () => {
-    console.log(`VSC Scheduler running on port ${PORT}`);
+  // Bind to all interfaces for external access
+  const HOST = process.env.HOST || '0.0.0.0';
+
+  app.listen(Number(PORT), HOST, () => {
+    console.log(`VSC Scheduler running on http://${HOST === '0.0.0.0' ? '0.0.0.0 (all interfaces)' : HOST}:${PORT}`);
+    console.log(`Access locally: http://localhost:${PORT}`);
+    console.log(`Access from network: http://172.21.233.71:${PORT}`);
   });
 }
 
