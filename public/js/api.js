@@ -17,26 +17,33 @@ function escapeHtml(str) {
 window.escapeHtml = escapeHtml;
 
 const API = {
+  // CSRF token for state-changing requests. Populated from any API response that
+  // includes `csrfToken` (login, register, /api/auth/me). The backend rejects
+  // POST/PUT/DELETE/PATCH without a matching X-CSRF-Token header.
+  csrfToken: null,
+
   async request(endpoint, options = {}) {
     const token = localStorage.getItem('token');
     const headers = {
       'Content-Type': 'application/json',
       ...options.headers
     };
-    
+
     if (token) {
       headers['Authorization'] = `Bearer ${token}`;
     }
 
-    console.log('API Request:', endpoint, 'Token:', token ? 'yes' : 'no');
+    // Attach CSRF token on state-changing requests (safe methods don't need it).
+    const method = (options.method || 'GET').toUpperCase();
+    if (this.csrfToken && !['GET', 'HEAD', 'OPTIONS'].includes(method)) {
+      headers['X-CSRF-Token'] = this.csrfToken;
+    }
 
     const response = await fetch(endpoint, {
       ...options,
       headers,
       credentials: 'include'
     });
-
-    console.log('API Response:', endpoint, response.status);
 
     const contentType = response.headers.get('content-type');
     if (!contentType || !contentType.includes('application/json')) {
@@ -45,6 +52,11 @@ const API = {
     }
 
     const data = await response.json();
+
+    // Capture/refresh the CSRF token whenever the backend sends one.
+    if (data && typeof data === 'object' && data.csrfToken) {
+      this.csrfToken = data.csrfToken;
+    }
 
     if (!response.ok) {
       throw new Error(data.error || 'Request failed');

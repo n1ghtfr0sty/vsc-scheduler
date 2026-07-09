@@ -7,7 +7,7 @@
     "start": "node src/index.js",
     "dev": "node src/index.js",
     "seed": "node src/seed.js",
-    "stop": "taskkill /F /IM node.exe /T 2>nul || echo No server running"
+    "stop": "node scripts/stop.js"
   },
   "dependencies": {
     "bcrypt": "^6.0.0",
@@ -19,6 +19,6 @@
     "helmet": "^8.2.0"
   },
   "engines": {
-    "node": ">=18.0.0"
+    "node": ">=24.0.0"
   }
 }

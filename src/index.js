@@ -19,6 +19,9 @@ app.use(helmet.contentSecurityPolicy({
   directives: {
     defaultSrc: ["'self'"],
     scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'"],
+    // Helmet's default script-src-attr 'none' blocks the SPA's inline onclick= handlers;
+    // must match scriptSrc's 'unsafe-inline' or clicks silently do nothing.
+    scriptSrcAttr: ["'unsafe-inline'"],
     styleSrc: ["'self'", "'unsafe-inline'"],
     imgSrc: ["'self'", "data:", "https://maps.google.com"],
     connectSrc: ["'self'"],

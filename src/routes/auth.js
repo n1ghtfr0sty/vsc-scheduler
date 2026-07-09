@@ -66,7 +66,8 @@ router.post('/register', async (req, res) => {
         name,
         role: 'pending'
       },
-      permissions: {}
+      permissions: {},
+      csrfToken: req.session._csrf
     });
   } catch (err) {
     console.error(err);
@@ -106,7 +107,8 @@ router.post('/login', loginLimiter, async (req, res) => {
         name: user.name,
         role: user.role
       },
-      permissions: getUserPermissions(user.id, user.role)
+      permissions: getUserPermissions(user.id, user.role),
+      csrfToken: req.session._csrf
     });
   } catch (err) {
     console.error(err);
