@@ -1839,6 +1839,17 @@ const App = {
           `).join('');
           return `<tr><td style="padding:4px 8px;text-transform:capitalize;">${resource}</td>${cells}</tr>`;
         }).join('');
+        const isAdmin = user.role === 'admin';
+        const bulkActions = isAdmin ? '' : `
+          <tr>
+            <td style="padding:4px 8px;"></td>
+            <td colspan="4" style="text-align:center;padding:2px 4px;">
+              <button onclick="App.grantAllPermissions(${user.id})"
+                style="padding:2px 10px;font-size:0.78rem;background:linear-gradient(135deg,var(--success),#1a7a3a);color:white;border:none;border-radius:5px;cursor:pointer;">Grant All</button>
+              <button onclick="App.clearAllPermissions(${user.id})"
+                style="padding:2px 10px;font-size:0.78rem;background:linear-gradient(135deg,#c0392b,#922b21);color:white;border:none;border-radius:5px;margin-left:4px;">Clear All</button>
+            </td>
+          </tr>`;
 
         card.innerHTML = `
           <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:0.5rem;">
@@ -1863,7 +1874,10 @@ const App = {
                   ${ACTIONS.map(a => `<th style="text-align:center;padding:4px 8px;text-transform:capitalize;">${a}</th>`).join('')}
                 </tr>
               </thead>
-              <tbody>${permRows}</tbody>
+              <tbody>
+                ${bulkActions}
+                ${permRows}
+              </tbody>
             </table>
           </details>
         `;
@@ -1907,6 +1921,26 @@ const App = {
     } catch (err) {
       this.showToast(err.message, 'error');
     }
+  },
+
+  // Toggle every permission checkbox on a user's card to checked and save.
+  // The buttons are only rendered for non-admins (admins' permissions are
+  // derived from role), so this won't normally run for an admin card.
+  async grantAllPermissions(userId) {
+    const card = Array.from(document.querySelectorAll('.card')).find(c => c.dataset.userId == userId);
+    if (!card) return;
+    card.querySelectorAll('input[type="checkbox"][data-resource]').forEach(cb => { cb.checked = true; });
+    await this.saveUserPermissions(userId);
+  },
+
+  // Toggle every permission checkbox on a user's card to unchecked and save.
+  // The buttons are only rendered for non-admins (admins' permissions are
+  // derived from role), so this won't normally run for an admin card.
+  async clearAllPermissions(userId) {
+    const card = Array.from(document.querySelectorAll('.card')).find(c => c.dataset.userId == userId);
+    if (!card) return;
+    card.querySelectorAll('input[type="checkbox"][data-resource]').forEach(cb => { cb.checked = false; });
+    await this.saveUserPermissions(userId);
   },
 
   async renderEvents() {
