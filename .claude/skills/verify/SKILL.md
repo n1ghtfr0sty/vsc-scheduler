@@ -16,8 +16,22 @@ from a non-elevated shell. Run a parallel instance instead:
 $env:PORT='3999'; npm run dev   # run_in_background
 ```
 
-**Caution:** both instances share `data/vsc.db` — writes through a test
-instance hit the real database. Clean up any test rows you create.
+**Caution:** by default both instances share `data/vsc.db` — writes through a
+test instance hit the real database. For destructive tests (deletes,
+cascades), run the test instance against a **copy** instead; `db.js` honors
+`DB_PATH`:
+
+```powershell
+Copy-Item data\vsc.db data\vsc-test-e2e.db -Force  # also copy -wal/-shm if present
+$env:PORT='3999'; $env:DB_PATH='./data/vsc-test-e2e.db'; npm run dev
+# ... delete data\vsc-test-e2e.db* when done
+```
+
+For direct DB assertions (e.g. verifying cascades), open the test DB readonly
+with the project's own better-sqlite3 while the server runs (WAL allows
+concurrent readers):
+`require('d:/Programming/Projects/Scheduler/node_modules/better-sqlite3')`.
+If sharing the live DB instead, clean up any test rows you create.
 
 ## Backend/API verification
 

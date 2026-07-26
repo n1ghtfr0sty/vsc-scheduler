@@ -1806,6 +1806,8 @@ const App = {
 
     try {
       const { users } = await API.users.getAll();
+      // Cache for edit/delete modals to look up user details by id
+      this._usersCache = users;
 
       // Separate pending users to highlight them at the top
       const pending = users.filter(u => u.role === 'pending');
@@ -1813,7 +1815,10 @@ const App = {
       const sorted = [...pending, ...active];
 
       main.innerHTML = `
-        <h1>User Management</h1>
+        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:0.5rem;">
+          <h1>User Management</h1>
+          <button class="btn btn-primary" onclick="App.showUserForm()">+ Add User</button>
+        </div>
         ${pending.length > 0 ? `<p class="alert alert-warning">${pending.length} account(s) pending approval</p>` : ''}
         <div id="usersList"></div>
       `;
@@ -1851,18 +1856,22 @@ const App = {
             </td>
           </tr>`;
 
+        // No delete button on the logged-in admin's own card (API blocks it too)
+        const isSelf = user.id === Auth.currentUser.id;
         card.innerHTML = `
           <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:0.5rem;">
             <div>
-              <strong>${user.name}</strong>
-              <span style="color:var(--text-muted);margin-left:0.5rem;">${user.email}</span>
+              <strong>${escapeHtml(user.name)}</strong>
+              <span style="color:var(--text-muted);margin-left:0.5rem;">${escapeHtml(user.email)}</span>
             </div>
-            <div style="display:flex;align-items:center;gap:0.5rem;">
+            <div style="display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap;">
               <label style="color:var(--text-muted);font-size:0.85rem;">Role:</label>
               <select data-user-id="${user.id}" onchange="App.saveUserRole(${user.id}, this.value)"
                 style="padding:4px 8px;background:var(--dark-card);color:var(--text);border:1px solid var(--dark-border);border-radius:6px;">
                 ${ROLES.map(r => `<option value="${r}" ${user.role === r ? 'selected' : ''}>${r}</option>`).join('')}
               </select>
+              <button class="btn btn-outline" style="padding:4px 14px;font-size:0.85rem;" onclick="App.showUserForm(${user.id})">Edit</button>
+              ${isSelf ? '' : `<button class="btn btn-danger" style="padding:4px 14px;font-size:0.85rem;" onclick="App.confirmDeleteUser(${user.id})">Delete</button>`}
             </div>
           </div>
           <details style="margin-top:1rem;">
@@ -1941,6 +1950,106 @@ const App = {
     if (!card) return;
     card.querySelectorAll('input[type="checkbox"][data-resource]').forEach(cb => { cb.checked = false; });
     await this.saveUserPermissions(userId);
+  },
+
+  // Create (no editId) or edit (editId) a user account. Role is only chosen on
+  // create — existing users' roles are changed via the card's role dropdown.
+  showUserForm(editId) {
+    const user = editId ? (this._usersCache || []).find(u => u.id === editId) : null;
+    if (editId && !user) return;
+
+    this.showModal(editId ? 'Edit User' : 'New User', `
+      <form id="userForm">
+        <div class="form-group">
+          <label>Name *</label>
+          <input type="text" name="name" required value="${user ? escapeHtml(user.name) : ''}">
+        </div>
+        <div class="form-group">
+          <label>Email *</label>
+          <input type="email" name="email" required value="${user ? escapeHtml(user.email) : ''}">
+        </div>
+        <div class="form-group">
+          <label>Phone</label>
+          <input type="tel" name="phone" value="${user && user.phone ? escapeHtml(user.phone) : ''}">
+        </div>
+        <div class="form-group">
+          <label>${editId ? 'New Password (leave blank to keep current)' : 'Password *'}</label>
+          <input type="password" name="password" ${editId ? '' : 'required'} autocomplete="new-password">
+        </div>
+        ${editId ? '' : `
+        <div class="form-group">
+          <label>Role *</label>
+          <select name="role">
+            <option value="family">family</option>
+            <option value="coach">coach</option>
+            <option value="admin">admin</option>
+            <option value="pending">pending</option>
+          </select>
+        </div>`}
+        <button type="submit" class="btn btn-primary">${editId ? 'Save' : 'Create User'}</button>
+        <button type="button" class="btn btn-outline" onclick="closeModal()">Cancel</button>
+      </form>
+    `);
+
+    document.getElementById('userForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const formData = new FormData(e.target);
+      const data = {
+        name: formData.get('name'),
+        email: formData.get('email'),
+        phone: formData.get('phone') || null,
+      };
+      const password = formData.get('password');
+      if (password) data.password = password;
+
+      try {
+        if (editId) {
+          await API.users.update(editId, data);
+          this.showToast('User updated', 'success');
+        } else {
+          data.role = formData.get('role');
+          await API.users.create(data);
+          this.showToast('User created', 'success');
+        }
+        closeModal();
+        this.renderUsers();
+      } catch (err) {
+        this.showToast(err.message, 'error');
+      }
+    });
+  },
+
+  // Confirmation popup before deleting a user. The warning spells out what
+  // the cascade removes for family/coach accounts.
+  confirmDeleteUser(userId) {
+    const user = (this._usersCache || []).find(u => u.id === userId);
+    if (!user) return;
+
+    const cascadeWarning = {
+      family: 'This will also permanently delete their family profile, all of their players, and those players\' team assignments.',
+      coach: 'This will also permanently delete their coach record and team assignments.',
+    }[user.role] || 'This action cannot be undone.';
+
+    this.showModal('Delete User', `
+      <p>Are you sure you want to delete <strong>${escapeHtml(user.name)}</strong>
+        <span style="color:var(--text-muted);">(${escapeHtml(user.email)})</span>?</p>
+      <p class="alert alert-warning" style="margin-top:0.75rem;">${cascadeWarning}</p>
+      <div style="display:flex;gap:0.5rem;margin-top:1rem;">
+        <button class="btn btn-danger" onclick="App.deleteUser(${user.id})">Delete User</button>
+        <button class="btn btn-outline" onclick="closeModal()">Cancel</button>
+      </div>
+    `);
+  },
+
+  async deleteUser(userId) {
+    try {
+      await API.users.delete(userId);
+      closeModal();
+      this.showToast('User deleted', 'success');
+      this.renderUsers();
+    } catch (err) {
+      this.showToast(err.message, 'error');
+    }
   },
 
   async renderEvents() {

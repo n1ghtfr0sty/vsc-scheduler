@@ -291,6 +291,21 @@ const API = {
     async getAll() {
       return API.request('/api/users');
     },
+    async create(data) {
+      return API.request('/api/users', {
+        method: 'POST',
+        body: JSON.stringify(data)
+      });
+    },
+    async update(id, data) {
+      return API.request(`/api/users/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(data)
+      });
+    },
+    async delete(id) {
+      return API.request(`/api/users/${id}`, { method: 'DELETE' });
+    },
     async updateRole(id, role) {
       return API.request(`/api/users/${id}/role`, {
         method: 'PUT',

@@ -17,6 +17,10 @@ async function ensureDb() {
 
   db = new Database(dbPath);
   db.pragma('journal_mode = WAL');
+  // SQLite defaults foreign_keys to OFF per connection; without this the
+  // ON DELETE CASCADE rules declared in schema.js never fire and deletes
+  // leave orphaned child rows (families, players, permissions, ...).
+  db.pragma('foreign_keys = ON');
   return db;
 }
 
