@@ -17,6 +17,14 @@ class Calendar {
     
     this.dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
     
+    // Cells are role="button" divs; activate them with Enter/Space like a button.
+    this.container.addEventListener('keydown', (e) => {
+      if ((e.key === 'Enter' || e.key === ' ') && e.target.matches('.calendar-day, .calendar-event, .calendar-more')) {
+        e.preventDefault();
+        e.target.click();
+      }
+    });
+    
     this.render();
   }
   
@@ -199,7 +207,7 @@ class Calendar {
       const isCurrentMonth = this.isSameMonth(current);
       
       html += `
-        <div class="calendar-day ${isToday ? 'today' : ''} ${!isCurrentMonth ? 'other-month' : ''}" 
+        <div role="button" tabindex="0" class="calendar-day ${isToday ? 'today' : ''} ${!isCurrentMonth ? 'other-month' : ''}" 
              onclick="window.calendar && window.calendar.onDateClick('${this.formatDate(current)}')">
           <div class="calendar-day-number">${current.getDate()}</div>
       `;
@@ -211,7 +219,7 @@ class Calendar {
         const hasConflict = game.has_conflict;
         const eventClass = hasConflict ? 'danger' : (isHome ? 'gold' : '');
         html += `
-          <div class="calendar-event ${eventClass}" 
+          <div role="button" tabindex="0" class="calendar-event ${eventClass}" 
                onclick="event.stopPropagation(); window.calendar && window.calendar.onGameClick(${game.id})">
             ${game.start_time} ${game.team_name}
           </div>
@@ -222,7 +230,7 @@ class Calendar {
       const displayEvents = calendarEvents.slice(0, 2);
       displayEvents.forEach(event => {
         html += `
-          <div class="calendar-event calendar-event-${event.event_type}" 
+          <div role="button" tabindex="0" class="calendar-event calendar-event-${event.event_type}" 
                onclick="event.stopPropagation(); window.calendar && window.calendar.onEventClick(${event.id})">
             ${event.start_time ? event.start_time + ' ' : ''}${event.name}
           </div>
@@ -232,7 +240,7 @@ class Calendar {
       const totalItems = games.length + calendarEvents.length;
       if (totalItems > 4) {
         const remaining = totalItems - 4;
-        html += `<div class="calendar-more" onclick="event.stopPropagation(); window.calendar && window.calendar.onDateClick('${this.formatDate(current)}')">+${remaining} more</div>`;
+        html += `<div role="button" tabindex="0" class="calendar-more" onclick="event.stopPropagation(); window.calendar && window.calendar.onDateClick('${this.formatDate(current)}')">+${remaining} more</div>`;
       }
       
       html += '</div>';
@@ -258,7 +266,7 @@ class Calendar {
       const isToday = this.isToday(current);
       
       html += `
-        <div class="calendar-day ${isToday ? 'today' : ''}" 
+        <div role="button" tabindex="0" class="calendar-day ${isToday ? 'today' : ''}" 
              style="min-height: 200px;"
              onclick="window.calendar && window.calendar.onDateClick('${this.formatDate(current)}')">
           <div class="calendar-day-header" style="padding: 0.25rem;">${day}</div>
@@ -270,7 +278,7 @@ class Calendar {
         const hasConflict = game.has_conflict;
         const eventClass = hasConflict ? 'danger' : (isHome ? 'gold' : '');
         html += `
-          <div class="calendar-event ${eventClass}" 
+          <div role="button" tabindex="0" class="calendar-event ${eventClass}" 
                onclick="event.stopPropagation(); window.calendar.onGameClick(${game.id})">
             ${game.start_time} - ${game.team_name}
           </div>
@@ -279,7 +287,7 @@ class Calendar {
       
       calendarEvents.forEach(event => {
         html += `
-          <div class="calendar-event calendar-event-${event.event_type}" 
+          <div role="button" tabindex="0" class="calendar-event calendar-event-${event.event_type}" 
                onclick="event.stopPropagation(); window.calendar.onEventClick(${event.id})">
             ${event.start_time ? event.start_time + ' ' : ''}${event.name}
           </div>
