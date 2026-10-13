@@ -142,15 +142,15 @@ class Calendar {
     html += `
       <div class="calendar-legend">
         <div class="calendar-legend-item">
-          <div class="calendar-legend-color" style="background: linear-gradient(135deg, var(--primary), var(--primary-dark))"></div>
+          <div class="calendar-legend-color"></div>
           <span>Team Game</span>
         </div>
         <div class="calendar-legend-item">
-          <div class="calendar-legend-color" style="background: linear-gradient(135deg, var(--gold), var(--gold-dark))"></div>
+          <div class="calendar-legend-color gold"></div>
           <span>Home Game</span>
         </div>
         <div class="calendar-legend-item">
-          <div class="calendar-legend-color" style="background: linear-gradient(135deg, #dc3545, #b02a37)"></div>
+          <div class="calendar-legend-color danger"></div>
           <span>Conflict</span>
         </div>
       </div>

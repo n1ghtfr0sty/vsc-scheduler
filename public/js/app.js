@@ -134,7 +134,7 @@ const App = {
         <h1>Vikings Soccer Club</h1>
         <div class="card" style="text-align:center;">
           <h2>Account Pending Approval</h2>
-          <p style="color:var(--text-muted); margin: 1rem 0;">
+          <p style="color:var(--text-dim); margin: 1rem 0;">
             Your account has been created and is waiting for an administrator to grant access.
             Please check back later or contact your club administrator.
           </p>
@@ -742,7 +742,7 @@ const App = {
               <option value="${c.id}" ${currentCoaches.includes(String(c.id)) ? 'selected' : ''}>${c.name}</option>
             `).join('')}
           </select>
-          <small style="color: var(--text-muted);">Hold Ctrl/Cmd to select multiple</small>
+          <small style="color: var(--text-dim);">Hold Ctrl/Cmd to select multiple</small>
         </div>
         <button type="submit" class="btn btn-primary">${editId ? 'Update' : 'Create'}</button>
         <button type="button" class="btn btn-outline" onclick="closeModal()">Cancel</button>
@@ -1736,18 +1736,18 @@ const App = {
           <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:0.5rem;">
             <div>
               <strong>${user.name}</strong>
-              <span style="color:var(--text-muted);margin-left:0.5rem;">${user.email}</span>
+              <span style="color:var(--text-dim);margin-left:0.5rem;">${user.email}</span>
             </div>
             <div style="display:flex;align-items:center;gap:0.5rem;">
-              <label style="color:var(--text-muted);font-size:0.85rem;">Role:</label>
+              <label style="color:var(--text-dim);font-size:0.85rem;">Role:</label>
               <select data-user-id="${user.id}" onchange="App.saveUserRole(${user.id}, this.value)"
-                style="padding:4px 8px;background:var(--dark-card);color:var(--text);border:1px solid var(--dark-border);border-radius:6px;">
+                style="padding:4px 8px;background:var(--surface);color:var(--text);border:1px solid var(--border);border-radius:6px;">
                 ${ROLES.map(r => `<option value="${r}" ${user.role === r ? 'selected' : ''}>${r}</option>`).join('')}
               </select>
             </div>
           </div>
           <details style="margin-top:1rem;">
-            <summary style="cursor:pointer;color:var(--text-muted);font-size:0.9rem;">Permissions</summary>
+            <summary style="cursor:pointer;color:var(--text-dim);font-size:0.9rem;">Permissions</summary>
             <table style="margin-top:0.75rem;width:100%;border-collapse:collapse;font-size:0.85rem;">
               <thead>
                 <tr>
