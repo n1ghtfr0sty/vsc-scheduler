@@ -1,3 +1,19 @@
+@font-face {
+  font-family: 'Space Grotesk';
+  src: url('/fonts/space-grotesk-latin-wght.woff2') format('woff2');
+  font-weight: 300 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'JetBrains Mono';
+  src: url('/fonts/jetbrains-mono-latin-wght.woff2') format('woff2');
+  font-weight: 100 800;
+  font-style: normal;
+  font-display: swap;
+}
+
 * {
   margin: 0;
   padding: 0;
@@ -81,6 +97,20 @@
   --space-6: 1.5rem;
   --space-8: 2rem;
 
+  /* Typography */
+  --font-ui: 'Space Grotesk', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Consolas, 'Liberation Mono', monospace;
+  --fs-2xs: 0.65rem;
+  --fs-xs: 0.75rem;
+  --fs-sm: 0.85rem;
+  --fs-md: 0.9rem;
+  --fs-base: 1rem;
+  --fs-lg: 1.15rem;
+  --fs-xl: 1.5rem;
+  --fs-2xl: 2rem;
+  --fs-3xl: 2.25rem;
+  --tracking-label: 0.08em;
+
   /* Print (black on white) */
   --print-ink: #000;
   --print-ink-2: #333;
@@ -92,12 +122,34 @@
 }
 
 body {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+  font-family: var(--font-ui);
   background: var(--bg);
   color: var(--text);
   line-height: 1.6;
   min-height: 100vh;
   position: relative;
+}
+
+button, input, select, textarea {
+  font-family: inherit;
+}
+
+h1 { font-size: var(--fs-2xl); }
+h2 { font-size: var(--fs-xl); }
+h3 { font-size: var(--fs-lg); }
+
+/* Data: times, dates, counts. Mono with fixed-width digits so columns align. */
+.game-card .game-date,
+.stat-card .value,
+.calendar-day-number,
+.calendar-event,
+.calendar-header h2,
+input[type="time"],
+input[type="date"],
+input[type="number"],
+input[type="tel"] {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
 }
 
 #app {
@@ -124,7 +176,7 @@ body {
 }
 
 .nav-brand {
-  font-size: 1.5rem;
+  font-size: var(--fs-xl);
   font-weight: bold;
   color: var(--accent-2);
   text-shadow: var(--glow-accent-2);
@@ -143,7 +195,7 @@ body {
   transition: all 0.2s ease;
   cursor: pointer;
   font-weight: 600;
-  font-size: 0.9rem;
+  font-size: var(--fs-md);
   background: transparent;
   border: 1px solid var(--hairline);
   box-shadow: none;
@@ -172,7 +224,7 @@ body {
   cursor: pointer;
   transition: all 0.2s ease;
   font-weight: 600;
-  font-size: 0.9rem;
+  font-size: var(--fs-md);
 }
 
 .nav-user .logout-btn:hover {
@@ -197,7 +249,7 @@ body {
   transition: all 0.2s ease;
   cursor: pointer;
   font-weight: 600;
-  font-size: 0.9rem;
+  font-size: var(--fs-md);
   font-family: inherit;
   background: transparent;
   border: 1px solid var(--hairline);
@@ -239,7 +291,7 @@ body {
   padding: 0.6rem 1rem;
   border-radius: 8px;
   font-weight: 600;
-  font-size: 0.9rem;
+  font-size: var(--fs-md);
   transition: all 0.2s ease;
 }
 
@@ -257,7 +309,7 @@ body {
   border: 1px solid var(--hairline);
   border-radius: var(--radius-md);
   padding: 0.5rem 0.85rem;
-  font-size: 1.25rem;
+  font-size: var(--fs-lg);
   line-height: 1;
   cursor: pointer;
 }
@@ -371,7 +423,7 @@ h3, h4 {
 
 .welcome-card h2 {
   color: var(--accent-2);
-  font-size: 1.25rem;
+  font-size: var(--fs-lg);
   margin-bottom: 0.5rem;
 }
 
@@ -385,7 +437,7 @@ h3, h4 {
   border: none;
   border-radius: var(--radius-md);
   cursor: pointer;
-  font-size: 0.95rem;
+  font-size: var(--fs-base);
   font-weight: 500;
   transition: all 0.2s;
 }
@@ -430,8 +482,11 @@ h3, h4 {
 .form-group label {
   display: block;
   margin-bottom: var(--space-2);
-  font-weight: 500;
-  color: var(--text);
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-label);
+  color: var(--text-dim);
 }
 
 .form-group input, .form-group select, .form-group textarea {
@@ -439,7 +494,7 @@ h3, h4 {
   padding: var(--space-3);
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
-  font-size: 1rem;
+  font-size: var(--fs-base);
   background: var(--bg);
   color: var(--text);
   transition: border-color 0.2s, box-shadow 0.2s;
@@ -476,8 +531,8 @@ th {
   color: var(--accent-2);
   font-weight: 600;
   text-transform: uppercase;
-  font-size: 0.85rem;
-  letter-spacing: 0.5px;
+  font-size: var(--fs-sm);
+  letter-spacing: var(--tracking-label);
   border-bottom: 2px solid var(--accent-2-dim);
 }
 
@@ -496,7 +551,7 @@ tr:last-child td {
 
 .actions button {
   padding: 0.4rem 0.8rem;
-  font-size: 0.85rem;
+  font-size: var(--fs-sm);
 }
 
 .alert {
@@ -566,7 +621,7 @@ tr:last-child td {
 .modal-close {
   background: none;
   border: none;
-  font-size: 1.5rem;
+  font-size: var(--fs-xl);
   cursor: pointer;
   color: var(--text-dim);
   transition: color 0.2s;
@@ -619,7 +674,7 @@ tr:last-child td {
 .auth-container h1 {
   color: var(--accent-2);
   margin-bottom: var(--space-2);
-  font-size: 2rem;
+  font-size: var(--fs-2xl);
 }
 
 .auth-container .subtitle {
@@ -640,7 +695,7 @@ tr:last-child td {
   width: 100%;
   margin-top: var(--space-6);
   padding: var(--space-3);
-  font-size: 1rem;
+  font-size: var(--fs-base);
 }
 
 .auth-container .switch-auth {
@@ -700,15 +755,15 @@ tr:last-child td {
 
 .stat-card h3 {
   color: var(--text-dim);
-  font-size: 0.85rem;
+  font-size: var(--fs-sm);
   margin-bottom: var(--space-2);
   text-transform: uppercase;
-  letter-spacing: 0.5px;
+  letter-spacing: var(--tracking-label);
   font-weight: 600;
 }
 
 .stat-card .value {
-  font-size: 2.25rem;
+  font-size: var(--fs-3xl);
   font-weight: bold;
   color: var(--accent);
   text-shadow: var(--glow-accent);
@@ -720,7 +775,7 @@ tr:last-child td {
 }
 
 .stat-card .value-small {
-  font-size: 1rem;
+  font-size: var(--fs-base);
   color: var(--text-dim);
   font-weight: 500;
 }
@@ -762,13 +817,13 @@ tr:last-child td {
 
 .game-card .game-date {
   color: var(--accent-2);
-  font-size: 0.9rem;
+  font-size: var(--fs-md);
   font-weight: 600;
 }
 
 .game-card .game-teams {
   font-weight: bold;
-  font-size: 1.15rem;
+  font-size: var(--fs-lg);
   margin: 0.5rem 0;
   color: var(--text);
 }
@@ -780,7 +835,7 @@ tr:last-child td {
 
 .game-card .game-notes {
   color: var(--text-dim);
-  font-size: 0.9rem;
+  font-size: var(--fs-md);
   font-style: italic;
   margin-top: var(--space-2);
 }
@@ -832,7 +887,7 @@ tr:last-child td {
 
 .empty-state h3 {
   color: var(--accent-2);
-  font-size: 1.1rem;
+  font-size: var(--fs-lg);
   margin-bottom: 0.5rem;
 }
 
@@ -958,7 +1013,7 @@ select option {
   }
 
   table {
-    font-size: 0.9rem;
+    font-size: var(--fs-md);
   }
 
   th, td {
@@ -986,7 +1041,7 @@ select option {
 .calendar-header h2 {
   margin: 0;
   color: var(--accent-2);
-  font-size: 1.5rem;
+  font-size: var(--fs-xl);
 }
 
 .calendar-nav {
@@ -1033,9 +1088,9 @@ select option {
   padding: var(--space-3);
   font-weight: 600;
   color: var(--text-dim);
-  font-size: 0.85rem;
+  font-size: var(--fs-sm);
   text-transform: uppercase;
-  letter-spacing: 0.5px;
+  letter-spacing: var(--tracking-label);
 }
 
 .calendar-day {
@@ -1064,7 +1119,7 @@ select option {
 
 .calendar-day-number {
   font-weight: 600;
-  font-size: 0.9rem;
+  font-size: var(--fs-md);
   color: var(--text);
   margin-bottom: var(--space-2);
 }
@@ -1082,7 +1137,7 @@ select option {
   color: var(--on-accent);
   padding: 0.25rem 0.5rem;
   border-radius: var(--radius-sm);
-  font-size: 0.75rem;
+  font-size: var(--fs-xs);
   margin-bottom: var(--space-1);
   white-space: nowrap;
   overflow: hidden;
@@ -1138,7 +1193,7 @@ select option {
 
 .calendar-more {
   color: var(--accent-2);
-  font-size: 0.75rem;
+  font-size: var(--fs-xs);
   font-weight: 600;
   cursor: pointer;
   padding: var(--space-1);
@@ -1153,7 +1208,7 @@ select option {
   display: inline-block;
   padding: 0.2rem 0.6rem;
   border-radius: 4px;
-  font-size: 0.8rem;
+  font-size: var(--fs-sm);
   font-weight: 600;
   text-transform: capitalize;
 }
@@ -1196,7 +1251,7 @@ select option {
   display: flex;
   align-items: center;
   gap: var(--space-2);
-  font-size: 0.85rem;
+  font-size: var(--fs-sm);
   color: var(--text-dim);
 }
 
@@ -1244,11 +1299,11 @@ select option {
   }
 
   .calendar-day-number {
-    font-size: 0.8rem;
+    font-size: var(--fs-sm);
   }
 
   .calendar-event {
-    font-size: 0.65rem;
+    font-size: var(--fs-2xs);
     padding: 0.15rem 0.25rem;
   }
 
