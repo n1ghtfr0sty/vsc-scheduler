@@ -69,10 +69,10 @@
       
       ctx.beginPath();
       ctx.arc(0, 0, this.size, 0, Math.PI * 2);
-      ctx.fillStyle = brightness > 0.1 ? '#4ae88a' : '#2ecc71';
+      ctx.fillStyle = brightness > 0.1 ? '#2d6a2d' : '#228B22';
       ctx.fill();
       
-      ctx.strokeStyle = brightness > 0.1 ? '#ffd700' : '#27ae60';
+      ctx.strokeStyle = brightness > 0.1 ? '#ffd700' : '#228B22';
       ctx.lineWidth = 1 + brightness * 2;
       ctx.stroke();
       
@@ -170,7 +170,8 @@
   }
   
   function animate() {
-    ctx.clearRect(0, 0, width, height);
+    ctx.fillStyle = '#0d1117';
+    ctx.fillRect(0, 0, width, height);
     
     drawCandleLight();
     

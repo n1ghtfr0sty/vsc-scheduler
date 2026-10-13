@@ -29,6 +29,12 @@ const App = {
     Router.route('/coaches', () => this.renderCoaches());
     Router.route('/coaches/:id', (params) => this.renderCoachDetail(params.id));
     Router.route('/settings', () => this.renderSettings());
+    Router.route('/events', () => this.renderEvents());
+    Router.route('/events/new', () => {
+      const params = Router.getParams();
+      this.renderEventForm(null, params.date);
+    });
+    Router.route('/events/:id/edit', (params) => this.renderEventForm(params.id));
     Router.route('/users', () => this.renderUsers());
   },
 
@@ -151,64 +157,104 @@ const App = {
     main.innerHTML = '<div class="loading">Loading...</div>';
 
     try {
-      console.log('Fetching data...');
-      const [gamesData, teamsData, settingsData] = await Promise.all([
+      const [gamesData, teamsData, settingsData, eventsData] = await Promise.all([
         API.games.getAll(),
         Auth.can('teams', 'view') ? API.teams.getMy() : Promise.resolve({ teams: [] }),
-        API.settings.get()
+        API.settings.get(),
+        Auth.can('events', 'view') ? API.events.getAll() : Promise.resolve({ events: [] })
       ]);
-      console.log('Games data:', gamesData);
 
       const totalGames = gamesData.games.length;
       const totalTeams = teamsData.teams?.length || 0;
-      const upcomingGames = gamesData.games.filter(g => new Date(g.game_date) >= new Date()).length;
+      const today = new Date().toISOString().split('T')[0];
+      const thisWeekStart = new Date();
+      thisWeekStart.setDate(thisWeekStart.getDate() - thisWeekStart.getDay());
+      const thisWeekEnd = new Date(thisWeekStart);
+      thisWeekEnd.setDate(thisWeekEnd.getDate() + 6);
+      
+      const gamesThisWeek = gamesData.games.filter(g => {
+        const d = new Date(g.game_date);
+        return d >= thisWeekStart && d <= thisWeekEnd;
+      }).length;
+      
+      const upcomingGames = gamesData.games.filter(g => new Date(g.game_date) >= new Date(today)).length;
+      const conflicts = gamesData.games.filter(g => g.has_conflict).length;
+      
+      const isCoach = Auth.isCoach();
+      const hour = new Date().getHours();
+      const greeting = hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening';
+      const userName = Auth.currentUser?.name?.split(' ')[0] || 'there';
 
       main.innerHTML = `
-        <h1>Dashboard</h1>
+        <h1>${greeting}, ${userName}</h1>
         
-        <div id="calendarContainer"></div>
-        
-        <div class="dashboard-grid">
-          <div class="stat-card">
-            <h3>Total Games</h3>
-            <div class="value">${totalGames}</div>
+        ${gamesData.games.length === 0 && totalTeams === 0 ? `
+          <div class="card welcome-card">
+            <h2>Welcome to VSC Scheduler</h2>
+            <p>Get started by creating your first game or team below.
+            ${Auth.can('games', 'create') ? `
+              <button class="btn btn-primary" onclick="Router.navigate('/games/new')">Schedule First Game</button>
+              <button class="btn btn-secondary" onclick="Router.navigate('/schedule')">View All Games</button>
+            ` : ''}
+            ${Auth.can('teams', 'create') ? `
+              <button class="btn btn-outline" style="margin-left:0.5rem" onclick="Router.navigate('/teams')">Manage Teams</button>
+            ` : ''}
           </div>
-          <div class="stat-card">
-            <h3>Your Teams</h3>
-            <div class="value">${totalTeams}</div>
+        ` : `
+        <div class="dashboard-layout">
+          <div class="dashboard-left">
+            <div id="calendarContainer"></div>
           </div>
-          <div class="stat-card">
-            <h3>Upcoming Games</h3>
-            <div class="value">${upcomingGames}</div>
-          </div>
-          <div class="stat-card">
-            <h3>Travel Time (Same Location)</h3>
-            <div class="value">${settingsData.settings.travel_time_same_location || 0} min</div>
-          </div>
-          <div class="stat-card">
-            <h3>Travel Time (Different Location)</h3>
-            <div class="value">${settingsData.settings.travel_time_different_location || 90} min</div>
-          </div>
-          <div class="stat-card">
-            <h3>Default Game Duration</h3>
-            <div class="value">${settingsData.settings.default_game_duration || 90} min</div>
-          </div>
-        </div>
-
-        <div class="card">
-          <h2>Recent Games</h2>
-          ${gamesData.games.slice(0, 5).map(game => `
-            <div class="game-card">
-              <div class="game-date">${game.game_date} at ${game.start_time}</div>
-              <div class="game-teams">${game.team_name} vs ${game.opponent_name}</div>
-              <div class="game-location">${game.location || 'TBD'}</div>
+          <div class="dashboard-right">
+            <div class="dashboard-grid">
+              <div class="stat-card">
+                <h3>This Week</h3>
+                <div class="value">${gamesThisWeek}</div>
+              </div>
+              <div class="stat-card">
+                <h3>Upcoming</h3>
+                <div class="value">${upcomingGames}</div>
+              </div>
+              <div class="stat-card">
+                <h3>Total Games</h3>
+                <div class="value">${totalGames}</div>
+              </div>
+              ${Auth.isAdmin() ? `
+                <div class="stat-card">
+                  <h3>Conflicts</h3>
+                  <div class="value ${conflicts > 0 ? 'value-warning' : ''}">${conflicts}</div>
+                </div>
+              ` : ''}
+              ${isCoach ? `
+                <div class="stat-card">
+                  <h3>Your Teams</h3>
+                  <div class="value">${totalTeams}</div>
+                </div>
+              ` : ''}
+              <div class="stat-card">
+                <h3>Home Games</h3>
+                <div class="value">${gamesData.games.filter(g => g.location && g.location.toLowerCase().includes('home')).length}</div>
+              </div>
             </div>
-          `).join('')}
-          ${gamesData.games.length === 0 ? '<p class="empty-state">No games scheduled</p>' : ''}
+          </div>
         </div>
+        `}
 
-        ${Auth.can('games', 'create') ? `
+        ${gamesData.games.length > 0 ? `
           <div class="card">
+            <h2>Recent Games</h2>
+            ${gamesData.games.slice(0, 5).map(game => `
+              <div class="game-card">
+                <div class="game-date">${game.game_date} at ${game.start_time}</div>
+                <div class="game-teams">${game.team_name} vs ${game.opponent_name}</div>
+                <div class="game-location">${game.location || 'TBD'}</div>
+              </div>
+            `).join('')}
+          </div>
+        ` : ''}
+
+        ${gamesData.games.length > 0 && Auth.can('games', 'create') ? `
+          <div class="card card-actions">
             <h2>Quick Actions</h2>
             <button class="btn btn-primary" onclick="Router.navigate('/games/new')">Schedule New Game</button>
             <button class="btn btn-secondary" onclick="Router.navigate('/schedule')">View Schedule</button>
@@ -217,10 +263,7 @@ const App = {
       `;
 
       const calendarContainer = document.getElementById('calendarContainer');
-      console.log('Calendar container:', calendarContainer);
-      console.log('Calendar class:', window.Calendar);
       if (calendarContainer && window.Calendar) {
-        console.log('Creating calendar...');
         window.calendar = new Calendar(calendarContainer, {
           onDateClick: (date) => {
             if (Auth.can('games', 'create')) {
@@ -229,14 +272,15 @@ const App = {
               Router.navigate(`/schedule?date=${date}`);
             }
           },
-          onEventClick: (gameId) => {
+          onGameClick: (gameId) => {
             this.showGameDetailsModal(gameId);
+          },
+          onEventClick: (eventId) => {
+            this.showEventDetailsModal(eventId);
           }
         });
         window.calendar.setGames(gamesData.games);
-        console.log('Calendar created successfully');
-      } else {
-        console.log('Calendar NOT created - container:', calendarContainer, 'Calendar:', window.Calendar);
+        window.calendar.setEvents(eventsData.events);
       }
     } catch (err) {
       console.error('Dashboard error:', err);
@@ -251,10 +295,11 @@ const App = {
     main.innerHTML = '<div class="loading">Loading...</div>';
 
     try {
-      const [gamesData, seasonsData, teamsData] = await Promise.all([
+      const [gamesData, seasonsData, teamsData, eventsData] = await Promise.all([
         API.games.getAll(),
         API.seasons.getAll(),
-        API.teams.getAll()
+        API.teams.getAll(),
+        Auth.can('events', 'view') ? API.events.getAll() : Promise.resolve({ events: [] })
       ]);
 
       const params = Router.getParams();
@@ -285,7 +330,7 @@ const App = {
           <button class="btn btn-outline" onclick="window.print()">Print Schedule</button>
         </div>
         <div id="scheduleList">
-          ${this.renderGameList(filteredGames)}
+          ${this.renderScheduleList(filteredGames, eventsData.events, params)}
         </div>
       `;
     } catch (err) {
@@ -320,6 +365,63 @@ const App = {
         `).join('')}
       </div>
     `).join('');
+  },
+
+  renderScheduleList(games, events, params) {
+    // Collect all date keys
+    const dates = new Set();
+    games.forEach(g => dates.add(g.game_date));
+    events.forEach(e => dates.add(e.event_date));
+
+    if (dates.size === 0) {
+      return '<p class="empty-state">No games or events scheduled</p>';
+    }
+
+    return Array.from(dates)
+      .sort()
+      .map(date => {
+        const dayGames = (params && params.season_id || params && params.team_id)
+          ? games.filter(g => g.game_date === date)
+          : games.filter(g => g.game_date === date);
+        const dayEvents = events.filter(e => e.event_date === date);
+
+        if (dayGames.length === 0 && dayEvents.length === 0) return '';
+
+        let html = `<div class="card"><h3>${date}</h3>`;
+
+        // Games
+        if (dayGames.length > 0) {
+          html += dayGames.map(game => `
+            <div class="game-card">
+              <div class="game-date">${game.start_time} - ${game.end_time}</div>
+              <div class="game-teams"><a href="#/teams/${game.team_id}" class="link">${game.team_name}</a> vs <a href="#/opponents/${game.opponent_id}" class="link">${game.opponent_name}</a></div>
+              <div class="game-location">${game.location ? `<a href="https://maps.google.com/?q=${encodeURIComponent(game.location)}" target="_blank" class="link">${game.location}</a>` : 'TBD'}</div>
+              ${game.notes ? `<div class="game-notes">${game.notes}</div>` : ''}
+              ${game.season_name ? `<div class="game-date">${game.season_name}</div>` : ''}
+            </div>
+          `).join('');
+        }
+
+        // Events
+        if (dayEvents.length > 0) {
+          html += dayEvents.map(event => `
+            <div class="game-card" style="border-left-color: ${this._eventColor(event.event_type)};">
+              <div class="game-date">${event.start_time || 'All Day'} — ${event.end_time || '—'}</div>
+              <div class="game-teams">${event.name}</div>
+              <div class="game-location" style="color: var(--text-dim);">${event.location || 'TBD'} — <span class="event-type-badge event-type-${event.event_type}">${event.event_type}</span></div>
+              ${event.description ? `<div class="game-notes">${event.description}</div>` : ''}
+            </div>
+          `).join('');
+        }
+
+        html += '</div>';
+        return html;
+      }).join('');
+  },
+
+  _eventColor(type) {
+    const known = ['tournament', 'party', 'meeting', 'practice', 'other'];
+    return `var(--event-${known.includes(type) ? type : 'other'})`;
   },
 
   filterSchedule() {
@@ -1692,12 +1794,14 @@ const App = {
     const main = document.getElementById('main');
     main.innerHTML = '<div class="loading">Loading...</div>';
 
-    const RESOURCES = ['games', 'players', 'families', 'coaches', 'teams', 'opponents', 'seasons', 'settings', 'users'];
+    const RESOURCES = ['games', 'events', 'players', 'families', 'coaches', 'teams', 'opponents', 'seasons', 'settings', 'users'];
     const ACTIONS = ['view', 'create', 'edit', 'delete'];
     const ROLES = ['admin', 'coach', 'family', 'pending'];
 
     try {
       const { users } = await API.users.getAll();
+      // Cache for edit/delete modals to look up user details by id
+      this._usersCache = users;
 
       // Separate pending users to highlight them at the top
       const pending = users.filter(u => u.role === 'pending');
@@ -1705,7 +1809,10 @@ const App = {
       const sorted = [...pending, ...active];
 
       main.innerHTML = `
-        <h1>User Management</h1>
+        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:0.5rem;">
+          <h1>User Management</h1>
+          <button class="btn btn-primary" onclick="App.showUserForm()">+ Add User</button>
+        </div>
         ${pending.length > 0 ? `<p class="alert alert-warning">${pending.length} account(s) pending approval</p>` : ''}
         <div id="usersList"></div>
       `;
@@ -1731,19 +1838,34 @@ const App = {
           `).join('');
           return `<tr><td style="padding:4px 8px;text-transform:capitalize;">${resource}</td>${cells}</tr>`;
         }).join('');
+        const isAdmin = user.role === 'admin';
+        const bulkActions = isAdmin ? '' : `
+          <tr>
+            <td style="padding:4px 8px;"></td>
+            <td colspan="4" style="text-align:center;padding:2px 4px;">
+              <button onclick="App.grantAllPermissions(${user.id})"
+                style="padding:2px 10px;font-size:0.78rem;background:var(--accent-dim);color:var(--on-accent);border:none;border-radius:var(--radius-sm);cursor:pointer;">Grant All</button>
+              <button onclick="App.clearAllPermissions(${user.id})"
+                style="padding:2px 10px;font-size:0.78rem;background:var(--danger);color:var(--on-danger);border:none;border-radius:var(--radius-sm);margin-left:4px;cursor:pointer;">Clear All</button>
+            </td>
+          </tr>`;
 
+        // No delete button on the logged-in admin's own card (API blocks it too)
+        const isSelf = user.id === Auth.currentUser.id;
         card.innerHTML = `
           <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:0.5rem;">
             <div>
-              <strong>${user.name}</strong>
-              <span style="color:var(--text-dim);margin-left:0.5rem;">${user.email}</span>
+              <strong>${escapeHtml(user.name)}</strong>
+              <span style="color:var(--text-dim);margin-left:0.5rem;">${escapeHtml(user.email)}</span>
             </div>
-            <div style="display:flex;align-items:center;gap:0.5rem;">
+            <div style="display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap;">
               <label style="color:var(--text-dim);font-size:0.85rem;">Role:</label>
               <select data-user-id="${user.id}" onchange="App.saveUserRole(${user.id}, this.value)"
                 style="padding:4px 8px;background:var(--surface);color:var(--text);border:1px solid var(--border);border-radius:6px;">
                 ${ROLES.map(r => `<option value="${r}" ${user.role === r ? 'selected' : ''}>${r}</option>`).join('')}
               </select>
+              <button class="btn btn-outline" style="padding:4px 14px;font-size:0.85rem;" onclick="App.showUserForm(${user.id})">Edit</button>
+              ${isSelf ? '' : `<button class="btn btn-danger" style="padding:4px 14px;font-size:0.85rem;" onclick="App.confirmDeleteUser(${user.id})">Delete</button>`}
             </div>
           </div>
           <details style="margin-top:1rem;">
@@ -1755,7 +1877,10 @@ const App = {
                   ${ACTIONS.map(a => `<th style="text-align:center;padding:4px 8px;text-transform:capitalize;">${a}</th>`).join('')}
                 </tr>
               </thead>
-              <tbody>${permRows}</tbody>
+              <tbody>
+                ${bulkActions}
+                ${permRows}
+              </tbody>
             </table>
           </details>
         `;
@@ -1796,6 +1921,333 @@ const App = {
     try {
       await API.users.updatePermissions(userId, permissions);
       this.showToast('Permissions saved', 'success');
+    } catch (err) {
+      this.showToast(err.message, 'error');
+    }
+  },
+
+  // Toggle every permission checkbox on a user's card to checked and save.
+  // The buttons are only rendered for non-admins (admins' permissions are
+  // derived from role), so this won't normally run for an admin card.
+  async grantAllPermissions(userId) {
+    const card = Array.from(document.querySelectorAll('.card')).find(c => c.dataset.userId == userId);
+    if (!card) return;
+    card.querySelectorAll('input[type="checkbox"][data-resource]').forEach(cb => { cb.checked = true; });
+    await this.saveUserPermissions(userId);
+  },
+
+  // Toggle every permission checkbox on a user's card to unchecked and save.
+  // The buttons are only rendered for non-admins (admins' permissions are
+  // derived from role), so this won't normally run for an admin card.
+  async clearAllPermissions(userId) {
+    const card = Array.from(document.querySelectorAll('.card')).find(c => c.dataset.userId == userId);
+    if (!card) return;
+    card.querySelectorAll('input[type="checkbox"][data-resource]').forEach(cb => { cb.checked = false; });
+    await this.saveUserPermissions(userId);
+  },
+
+  // Create (no editId) or edit (editId) a user account. Role is only chosen on
+  // create — existing users' roles are changed via the card's role dropdown.
+  showUserForm(editId) {
+    const user = editId ? (this._usersCache || []).find(u => u.id === editId) : null;
+    if (editId && !user) return;
+
+    this.showModal(editId ? 'Edit User' : 'New User', `
+      <form id="userForm">
+        <div class="form-group">
+          <label>Name *</label>
+          <input type="text" name="name" required value="${user ? escapeHtml(user.name) : ''}">
+        </div>
+        <div class="form-group">
+          <label>Email *</label>
+          <input type="email" name="email" required value="${user ? escapeHtml(user.email) : ''}">
+        </div>
+        <div class="form-group">
+          <label>Phone</label>
+          <input type="tel" name="phone" value="${user && user.phone ? escapeHtml(user.phone) : ''}">
+        </div>
+        <div class="form-group">
+          <label>${editId ? 'New Password (leave blank to keep current)' : 'Password *'}</label>
+          <input type="password" name="password" ${editId ? '' : 'required'} autocomplete="new-password">
+        </div>
+        ${editId ? '' : `
+        <div class="form-group">
+          <label>Role *</label>
+          <select name="role">
+            <option value="family">family</option>
+            <option value="coach">coach</option>
+            <option value="admin">admin</option>
+            <option value="pending">pending</option>
+          </select>
+        </div>`}
+        <button type="submit" class="btn btn-primary">${editId ? 'Save' : 'Create User'}</button>
+        <button type="button" class="btn btn-outline" onclick="closeModal()">Cancel</button>
+      </form>
+    `);
+
+    document.getElementById('userForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const formData = new FormData(e.target);
+      const data = {
+        name: formData.get('name'),
+        email: formData.get('email'),
+        phone: formData.get('phone') || null,
+      };
+      const password = formData.get('password');
+      if (password) data.password = password;
+
+      try {
+        if (editId) {
+          await API.users.update(editId, data);
+          this.showToast('User updated', 'success');
+        } else {
+          data.role = formData.get('role');
+          await API.users.create(data);
+          this.showToast('User created', 'success');
+        }
+        closeModal();
+        this.renderUsers();
+      } catch (err) {
+        this.showToast(err.message, 'error');
+      }
+    });
+  },
+
+  // Confirmation popup before deleting a user. The warning spells out what
+  // the cascade removes for family/coach accounts.
+  confirmDeleteUser(userId) {
+    const user = (this._usersCache || []).find(u => u.id === userId);
+    if (!user) return;
+
+    const cascadeWarning = {
+      family: 'This will also permanently delete their family profile, all of their players, and those players\' team assignments.',
+      coach: 'This will also permanently delete their coach record and team assignments.',
+    }[user.role] || 'This action cannot be undone.';
+
+    this.showModal('Delete User', `
+      <p>Are you sure you want to delete <strong>${escapeHtml(user.name)}</strong>
+        <span style="color:var(--text-dim);">(${escapeHtml(user.email)})</span>?</p>
+      <p class="alert alert-warning" style="margin-top:0.75rem;">${cascadeWarning}</p>
+      <div style="display:flex;gap:0.5rem;margin-top:1rem;">
+        <button class="btn btn-danger" onclick="App.deleteUser(${user.id})">Delete User</button>
+        <button class="btn btn-outline" onclick="closeModal()">Cancel</button>
+      </div>
+    `);
+  },
+
+  async deleteUser(userId) {
+    try {
+      await API.users.delete(userId);
+      closeModal();
+      this.showToast('User deleted', 'success');
+      this.renderUsers();
+    } catch (err) {
+      this.showToast(err.message, 'error');
+    }
+  },
+
+  async renderEvents() {
+    if (!Auth.requireAuth()) return;
+
+    const main = document.getElementById('main');
+    main.innerHTML = '<div class="loading">Loading...</div>';
+
+    try {
+      const data = await API.events.getAll();
+
+      main.innerHTML = `
+        <div class="header-actions">
+          <h1>Events</h1>
+          ${Auth.can('events', 'create') ? `<button class="btn btn-primary" onclick="App.showEventForm()">+ New Event</button>` : ''}
+        </div>
+        <div class="card">
+          <table>
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Time</th>
+                <th>Name</th>
+                <th>Type</th>
+                <th>Location</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${data.events.map(event => `
+                <tr>
+                  <td>${event.event_date}</td>
+                  <td>${event.start_time || '—'} — ${event.end_time || '—'}</td>
+                  <td>${event.name}</td>
+                  <td><span class="event-type-badge event-type-${event.event_type}">${event.event_type}</span></td>
+                  <td>${event.location || '—'}</td>
+                  <td class="actions">
+                    ${Auth.can('events', 'edit') ? `<button class="btn btn-outline" onclick="App.showEventForm(${event.id})">Edit</button>` : ''}
+                    ${Auth.can('events', 'delete') ? `<button class="btn btn-danger" onclick="App.deleteEvent(${event.id})">Delete</button>` : ''}
+                  </td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+          ${data.events.length === 0 ? '<p class="empty-state">No events scheduled</p>' : ''}
+        </div>
+      `;
+    } catch (err) {
+      main.innerHTML = `<div class="alert alert-danger">${err.message}</div>`;
+    }
+  },
+
+  async showEventForm(editId = null) {
+    let event = null;
+    if (editId) {
+      const data = await API.events.getOne(editId);
+      event = data.event;
+    }
+
+    this.showModal(editId ? 'Edit Event' : 'New Event', `
+      <form id="eventForm">
+        <input type="hidden" name="id" value="${editId || ''}">
+        <div class="form-group">
+          <label>Name *</label>
+          <input type="text" name="name" value="${event?.name || ''}" required placeholder="e.g., Fall Tournament">
+        </div>
+        <div class="form-group">
+          <label>Date *</label>
+          <input type="date" name="event_date" value="${event?.event_date || ''}" required>
+        </div>
+        <div class="form-group" style="display:flex;gap:1rem;">
+          <div style="flex:1;">
+            <label>Start Time</label>
+            <input type="time" name="start_time" value="${event?.start_time || ''}">
+          </div>
+          <div style="flex:1;">
+            <label>End Time</label>
+            <input type="time" name="end_time" value="${event?.end_time || ''}">
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Type *</label>
+          <select name="event_type" required>
+            <option value="tournament" ${event?.event_type === 'tournament' ? 'selected' : ''}>Tournament</option>
+            <option value="party" ${event?.event_type === 'party' ? 'selected' : ''}>Party</option>
+            <option value="meeting" ${event?.event_type === 'meeting' ? 'selected' : ''}>Meeting</option>
+            <option value="practice" ${event?.event_type === 'practice' ? 'selected' : ''}>Practice</option>
+            <option value="other" ${event?.event_type === 'other' ? 'selected' : ''}>Other</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Location</label>
+          <input type="text" name="location" value="${event?.location || ''}" placeholder="e.g., City Park Field">
+        </div>
+        <div class="form-group">
+          <label>Description</label>
+          <textarea name="description" placeholder="Event details">${event?.description || ''}</textarea>
+        </div>
+        <div class="form-group">
+          <label>Notes</label>
+          <textarea name="notes" placeholder="Additional notes">${event?.notes || ''}</textarea>
+        </div>
+        <button type="submit" class="btn btn-primary">${editId ? 'Update' : 'Create'}</button>
+        <button type="button" class="btn btn-outline" onclick="closeModal()">Cancel</button>
+      </form>
+    `);
+
+    document.getElementById('eventForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const formData = new FormData(e.target);
+      const data = {
+        name: formData.get('name'),
+        event_date: formData.get('event_date'),
+        start_time: formData.get('start_time') || null,
+        end_time: formData.get('end_time') || null,
+        event_type: formData.get('event_type'),
+        location: formData.get('location') || null,
+        description: formData.get('description') || null,
+        notes: formData.get('notes') || null
+      };
+
+      try {
+        if (editId) {
+          await API.events.update(editId, data);
+          this.showToast('Event updated', 'success');
+        } else {
+          await API.events.create(data);
+          this.showToast('Event created', 'success');
+        }
+        closeModal();
+        this.renderEvents();
+        // Refresh dashboard calendar if visible
+        if (window.calendar) {
+          const eventsData = await API.events.getAll();
+          window.calendar.setEvents(eventsData.events);
+        }
+      } catch (err) {
+        this.showToast(err.message, 'error');
+      }
+    });
+  },
+
+  async deleteEvent(id) {
+    if (!confirm('Are you sure you want to delete this event?')) return;
+
+    try {
+      await API.events.delete(id);
+      this.showToast('Event deleted', 'success');
+      this.renderEvents();
+      if (window.calendar) {
+        const eventsData = await API.events.getAll();
+        window.calendar.setEvents(eventsData.events);
+      }
+    } catch (err) {
+      this.showToast(err.message, 'error');
+    }
+  },
+
+  async showEventDetailsModal(eventId) {
+    try {
+      const data = await API.events.getOne(eventId);
+      const event = data.event;
+
+      const canEditEvent = Auth.can('events', 'edit');
+      const content = `
+        <div class="form-group">
+          <label>Name</label>
+          <p>${event.name}</p>
+        </div>
+        <div class="form-group">
+          <label>Date</label>
+          <p>${event.event_date}</p>
+        </div>
+        <div class="form-group">
+          <label>Time</label>
+          <p>${event.start_time || '—'} — ${event.end_time || '—'}</p>
+        </div>
+        <div class="form-group">
+          <label>Type</label>
+          <p><span class="event-type-badge event-type-${event.event_type}">${event.event_type}</span></p>
+        </div>
+        <div class="form-group">
+          <label>Location</label>
+          <p>${event.location || '—'}</p>
+        </div>
+        ${event.description ? `
+        <div class="form-group">
+          <label>Description</label>
+          <p>${event.description}</p>
+        </div>
+        ` : ''}
+        ${event.notes ? `
+        <div class="form-group">
+          <label>Notes</label>
+          <p>${event.notes}</p>
+        </div>
+        ` : ''}
+        <div style="margin-top: 1rem;">
+          ${canEditEvent ? `<button class="btn btn-primary" onclick="closeModal(); App.showEventForm(${event.id})">Edit</button>` : ''}
+          <button class="btn btn-outline" onclick="closeModal()">Close</button>
+        </div>
+      `;
+
+      this.showModal('Event Details', content);
     } catch (err) {
       this.showToast(err.message, 'error');
     }

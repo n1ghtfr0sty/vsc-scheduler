@@ -4,9 +4,11 @@ class Calendar {
     this.currentDate = new Date();
     this.selectedDate = null;
     this.games = [];
+    this.events = [];
     this.view = options.view || 'month';
     this.onDateClick = options.onDateClick || (() => {});
     this.onEventClick = options.onEventClick || (() => {});
+    this.onGameClick = options.onGameClick || (() => {});
     
     this.monthNames = [
       'January', 'February', 'March', 'April', 'May', 'June',
@@ -20,6 +22,11 @@ class Calendar {
   
   setGames(games) {
     this.games = games;
+    this.render();
+  }
+  
+  setEvents(events) {
+    this.events = events;
     this.render();
   }
   
@@ -76,6 +83,15 @@ class Calendar {
   getGamesForDate(date) {
     const dateStr = this.formatDate(date);
     return this.games.filter(game => game.game_date === dateStr);
+  }
+  
+  getEventsForDate(date) {
+    const dateStr = this.formatDate(date);
+    return this.events.filter(event => event.event_date === dateStr);
+  }
+  
+  getEventsForMonth(monthStr) {
+    return this.events.filter(event => event.event_date && event.event_date.startsWith(monthStr));
   }
   
   formatDate(date) {
@@ -150,6 +166,10 @@ class Calendar {
           <span>Home Game</span>
         </div>
         <div class="calendar-legend-item">
+          <div class="calendar-legend-color" style="background: var(--event-tournament)"></div>
+          <span>Event</span>
+        </div>
+        <div class="calendar-legend-item">
           <div class="calendar-legend-color danger"></div>
           <span>Conflict</span>
         </div>
@@ -174,6 +194,7 @@ class Calendar {
     
     while (addedDays < totalDays) {
       const games = this.getGamesForDate(current);
+      const calendarEvents = this.getEventsForDate(current);
       const isToday = this.isToday(current);
       const isCurrentMonth = this.isSameMonth(current);
       
@@ -183,21 +204,35 @@ class Calendar {
           <div class="calendar-day-number">${current.getDate()}</div>
       `;
       
-      const displayGames = games.slice(0, 3);
+      // Show games (max 2)
+      const displayGames = games.slice(0, 2);
       displayGames.forEach(game => {
         const isHome = game.location && game.location.toLowerCase().includes('home');
         const hasConflict = game.has_conflict;
         const eventClass = hasConflict ? 'danger' : (isHome ? 'gold' : '');
         html += `
           <div class="calendar-event ${eventClass}" 
-               onclick="event.stopPropagation(); window.calendar && window.calendar.onEventClick(${game.id})">
+               onclick="event.stopPropagation(); window.calendar && window.calendar.onGameClick(${game.id})">
             ${game.start_time} ${game.team_name}
           </div>
         `;
       });
       
-      if (games.length > 3) {
-        html += `<div class="calendar-more" onclick="event.stopPropagation(); window.calendar && window.calendar.onDateClick('${this.formatDate(current)}')">+${games.length - 3} more</div>`;
+      // Show events (max 2)
+      const displayEvents = calendarEvents.slice(0, 2);
+      displayEvents.forEach(event => {
+        html += `
+          <div class="calendar-event calendar-event-${event.event_type}" 
+               onclick="event.stopPropagation(); window.calendar && window.calendar.onEventClick(${event.id})">
+            ${event.start_time ? event.start_time + ' ' : ''}${event.name}
+          </div>
+        `;
+      });
+      
+      const totalItems = games.length + calendarEvents.length;
+      if (totalItems > 4) {
+        const remaining = totalItems - 4;
+        html += `<div class="calendar-more" onclick="event.stopPropagation(); window.calendar && window.calendar.onDateClick('${this.formatDate(current)}')">+${remaining} more</div>`;
       }
       
       html += '</div>';
@@ -219,6 +254,7 @@ class Calendar {
       const current = new Date(startOfWeek);
       current.setDate(startOfWeek.getDate() + index);
       const games = this.getGamesForDate(current);
+      const calendarEvents = this.getEventsForDate(current);
       const isToday = this.isToday(current);
       
       html += `
@@ -235,8 +271,17 @@ class Calendar {
         const eventClass = hasConflict ? 'danger' : (isHome ? 'gold' : '');
         html += `
           <div class="calendar-event ${eventClass}" 
-               onclick="event.stopPropagation(); window.calendar.onEventClick(${game.id})">
+               onclick="event.stopPropagation(); window.calendar.onGameClick(${game.id})">
             ${game.start_time} - ${game.team_name}
+          </div>
+        `;
+      });
+      
+      calendarEvents.forEach(event => {
+        html += `
+          <div class="calendar-event calendar-event-${event.event_type}" 
+               onclick="event.stopPropagation(); window.calendar.onEventClick(${event.id})">
+            ${event.start_time ? event.start_time + ' ' : ''}${event.name}
           </div>
         `;
       });

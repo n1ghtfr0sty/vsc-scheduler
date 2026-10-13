@@ -120,6 +120,7 @@ body {
   position: sticky;
   top: 0;
   z-index: 100;
+  border-bottom: 1px solid rgba(255,255,255,0.05);
 }
 
 .nav-brand {
@@ -182,6 +183,134 @@ body {
   box-shadow: var(--glow-danger);
 }
 
+/* --- "More ▾" dropdown (desktop) --- */
+
+.nav-dropdown {
+  position: relative;
+}
+
+/* Match the look of .nav-links a so More sits naturally in the bar */
+.nav-more-btn {
+  color: var(--text);
+  padding: 0.65rem 1.25rem;
+  border-radius: var(--radius-md);
+  transition: all 0.2s ease;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 0.9rem;
+  font-family: inherit;
+  background: transparent;
+  border: 1px solid var(--hairline);
+}
+
+.nav-more-btn:hover {
+  background: var(--accent-soft);
+  color: var(--accent);
+  transform: translateY(-2px);
+  box-shadow: var(--glow-accent);
+  border-color: var(--accent);
+}
+
+.nav-dropdown-menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  min-width: 180px;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding: 0.5rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-3);
+  z-index: 200;
+  /* Short windows: keep the last items reachable */
+  max-height: calc(100vh - 90px);
+  overflow-y: auto;
+}
+
+.nav-dropdown-menu.hidden { display: none; }
+
+.nav-dropdown-menu a {
+  display: block;
+  color: var(--text);
+  text-decoration: none;
+  padding: 0.6rem 1rem;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 0.9rem;
+  transition: all 0.2s ease;
+}
+
+.nav-dropdown-menu a:hover, .nav-dropdown-menu a.active {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+/* --- Hamburger toggle + slide-down panel (mobile) --- */
+
+.nav-toggle {
+  display: none;
+  color: var(--text);
+  background: transparent;
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-md);
+  padding: 0.5rem 0.85rem;
+  font-size: 1.25rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.nav-toggle.hidden { display: none; }
+
+.nav-mobile-panel {
+  display: none;
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding: 0.75rem 1rem 1rem;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  box-shadow: var(--shadow-3);
+  z-index: 200;
+  /* Short screens (landscape phones): keep Logout reachable */
+  max-height: calc(100vh - 70px);
+  overflow-y: auto;
+}
+
+.nav-mobile-panel a {
+  display: block;
+  color: var(--text);
+  text-decoration: none;
+  padding: 0.75rem 1rem;
+  border-radius: 8px;
+  font-weight: 600;
+  transition: all 0.2s ease;
+}
+
+.nav-mobile-panel a:hover, .nav-mobile-panel a.active {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.nav-panel-divider {
+  height: 1px;
+  background: var(--border);
+  margin: 0.5rem 0;
+}
+
+.nav-panel-user {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 1rem;
+  color: var(--text-dim);
+}
+
 .main-content {
   max-width: 1200px;
   margin: 0 auto;
@@ -224,6 +353,31 @@ h3, h4 {
 .card:hover {
   border-color: var(--accent);
   transition: border-color 0.2s;
+}
+
+.card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  align-items: center;
+}
+
+.welcome-card {
+  text-align: center;
+  padding: 3rem 1.5rem;
+  border-left: 4px solid var(--accent);
+  background: linear-gradient(90deg, var(--accent-soft) 0%, transparent 100%);
+}
+
+.welcome-card h2 {
+  color: var(--accent-2);
+  font-size: 1.25rem;
+  margin-bottom: 0.5rem;
+}
+
+.welcome-card p {
+  color: var(--text-dim);
+  margin-bottom: 1.5rem;
 }
 
 .btn {
@@ -324,6 +478,7 @@ th {
   text-transform: uppercase;
   font-size: 0.85rem;
   letter-spacing: 0.5px;
+  border-bottom: 2px solid var(--accent-2-dim);
 }
 
 tr:hover {
@@ -503,11 +658,30 @@ tr:last-child td {
   text-decoration: underline;
 }
 
-.dashboard-grid {
+.dashboard-layout {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  grid-template-columns: 1fr;
   gap: var(--space-6);
   margin-bottom: var(--space-8);
+}
+
+@media (min-width: 1024px) {
+  .dashboard-layout {
+    grid-template-columns: 1fr 340px;
+    gap: 1.5rem;
+  }
+}
+
+.dashboard-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 1rem;
+}
+
+@media (min-width: 1024px) {
+  .dashboard-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
 }
 
 .stat-card {
@@ -530,6 +704,7 @@ tr:last-child td {
   margin-bottom: var(--space-2);
   text-transform: uppercase;
   letter-spacing: 0.5px;
+  font-weight: 600;
 }
 
 .stat-card .value {
@@ -537,6 +712,17 @@ tr:last-child td {
   font-weight: bold;
   color: var(--accent);
   text-shadow: var(--glow-accent);
+}
+
+.stat-card .value.value-warning {
+  color: var(--danger-text);
+  text-shadow: var(--glow-danger);
+}
+
+.stat-card .value-small {
+  font-size: 1rem;
+  color: var(--text-dim);
+  font-weight: 500;
 }
 
 .schedule-filters {
@@ -644,6 +830,28 @@ tr:last-child td {
   color: var(--text-dim);
 }
 
+.empty-state h3 {
+  color: var(--accent-2);
+  font-size: 1.1rem;
+  margin-bottom: 0.5rem;
+}
+
+.empty-state p {
+  color: var(--text-dim);
+}
+
+.dashboard-left {
+  min-width: 0;
+}
+
+.dashboard-right {
+  min-width: 0;
+}
+
+.dashboard-left .calendar-container {
+  margin-bottom: 0;
+}
+
 a.link {
   color: var(--accent);
   text-decoration: none;
@@ -716,28 +924,43 @@ select option {
 
 @media (max-width: 768px) {
   .navbar {
-    flex-direction: column;
-    gap: var(--space-4);
-    padding: var(--space-4);
+    padding: var(--space-3) var(--space-4);
   }
-  
-  .nav-links {
-    flex-wrap: wrap;
-    justify-content: center;
+
+  /* Collapse desktop nav into the hamburger */
+  .nav-links, .nav-user {
+    display: none;
   }
-  
+
+  .nav-toggle {
+    display: block;
+  }
+
+  /* .hidden (set when logged out) must still win over the breakpoint rule */
+  .nav-toggle.hidden {
+    display: none;
+  }
+
+  .nav-mobile-panel.open {
+    display: flex;
+  }
+
   .main-content {
     padding: var(--space-4);
   }
-  
-  .dashboard-grid {
+
+  .dashboard-layout {
     grid-template-columns: 1fr;
   }
-  
+
+  .dashboard-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+
   table {
     font-size: 0.9rem;
   }
-  
+
   th, td {
     padding: 0.75rem 0.5rem;
   }
@@ -864,7 +1087,8 @@ select option {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  font-weight: 500;
+  font-weight: 600;
+  border: 1px solid var(--hairline);
   transition: transform 0.2s;
 }
 
@@ -882,6 +1106,36 @@ select option {
   color: var(--on-danger);
 }
 
+.calendar-event-tournament {
+  background: var(--event-tournament);
+  color: var(--bg);
+  border: 1px solid var(--event-tournament);
+}
+
+.calendar-event-party {
+  background: var(--event-party);
+  color: var(--bg);
+  border: 1px solid var(--event-party);
+}
+
+.calendar-event-meeting {
+  background: var(--event-meeting);
+  color: var(--bg);
+  border: 1px solid var(--event-meeting);
+}
+
+.calendar-event-practice {
+  background: var(--event-practice);
+  color: var(--bg);
+  border: 1px solid var(--event-practice);
+}
+
+.calendar-event-other {
+  background: var(--event-other);
+  color: var(--bg);
+  border: 1px solid var(--event-other);
+}
+
 .calendar-more {
   color: var(--accent-2);
   font-size: 0.75rem;
@@ -891,7 +1145,42 @@ select option {
 }
 
 .calendar-more:hover {
+  background: var(--accent-2-soft);
   text-decoration: underline;
+}
+
+.event-type-badge {
+  display: inline-block;
+  padding: 0.2rem 0.6rem;
+  border-radius: 4px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-transform: capitalize;
+}
+
+.event-type-tournament {
+  background: var(--event-tournament);
+  color: var(--bg);
+}
+
+.event-type-party {
+  background: var(--event-party);
+  color: var(--bg);
+}
+
+.event-type-meeting {
+  background: var(--event-meeting);
+  color: var(--bg);
+}
+
+.event-type-practice {
+  background: var(--event-practice);
+  color: var(--bg);
+}
+
+.event-type-other {
+  background: var(--event-other);
+  color: var(--bg);
 }
 
 .calendar-legend {
@@ -953,16 +1242,16 @@ select option {
     min-height: 60px;
     padding: var(--space-1);
   }
-  
+
   .calendar-day-number {
     font-size: 0.8rem;
   }
-  
+
   .calendar-event {
     font-size: 0.65rem;
     padding: 0.15rem 0.25rem;
   }
-  
+
   .calendar-header {
     flex-direction: column;
     gap: var(--space-4);

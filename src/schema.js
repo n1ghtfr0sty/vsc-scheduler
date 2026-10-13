@@ -110,6 +110,19 @@ async function main() {
     INSERT OR IGNORE INTO settings (key, value) VALUES ('default_game_duration', '90');
     INSERT OR IGNORE INTO settings (key, value) VALUES ('home_location', 'Evergreen');
 
+    CREATE TABLE IF NOT EXISTS calendar_events (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL,
+      event_date TEXT NOT NULL,
+      start_time TEXT,
+      end_time TEXT,
+      event_type TEXT NOT NULL CHECK(event_type IN ('tournament', 'party', 'meeting', 'practice', 'other')),
+      location TEXT,
+      description TEXT,
+      notes TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+
     CREATE TABLE IF NOT EXISTS user_permissions (
       user_id INTEGER NOT NULL,
       resource TEXT NOT NULL,

@@ -1,10 +1,12 @@
 const express = require('express');
+const bcrypt = require('bcrypt');
 const db = require('../db');
 const { requireRole } = require('../middleware/auth');
 
 const router = express.Router();
 
 const RESOURCES = ['games', 'players', 'families', 'coaches', 'teams', 'opponents', 'seasons', 'settings', 'users'];
+const ROLES = ['admin', 'coach', 'family', 'pending'];
 
 // Admin only: list all users with their current permissions
 router.get('/', requireRole('admin'), (req, res) => {
@@ -31,6 +33,106 @@ router.get('/', requireRole('admin'), (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Failed to fetch users' });
+  }
+});
+
+// Admin only: create a user directly (bypasses the register -> pending flow).
+// Non-admin users start with no permissions; admins bypass permission checks
+// entirely, so no user_permissions rows are created here.
+router.post('/', requireRole('admin'), async (req, res) => {
+  try {
+    const { name, email, password, role, phone } = req.body;
+
+    if (!name || !email || !password) {
+      return res.status(400).json({ error: 'Name, email, and password are required' });
+    }
+    if (!ROLES.includes(role)) {
+      return res.status(400).json({ error: 'Invalid role' });
+    }
+
+    const emailLower = email.toLowerCase();
+    const existing = db.prepare('SELECT id FROM users WHERE LOWER(email) = ?').get(emailLower);
+    if (existing) {
+      return res.status(400).json({ error: 'Email already registered' });
+    }
+
+    const passwordHash = await bcrypt.hash(password, 10);
+    const result = db.prepare(
+      'INSERT INTO users (email, password_hash, role, name, phone) VALUES (?, ?, ?, ?, ?)'
+    ).run(emailLower, passwordHash, role, name, phone || null);
+
+    res.json({
+      user: { id: result.lastInsertRowid, email: emailLower, name, role, phone: phone || null }
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to create user' });
+  }
+});
+
+// Admin only: edit a user's profile (name, email, phone) and optionally
+// reset their password (blank/absent password keeps the current one).
+// Role changes go through PUT /:id/role, not here.
+router.put('/:id', requireRole('admin'), async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { name, email, phone, password } = req.body;
+
+    const user = db.prepare('SELECT * FROM users WHERE id = ?').get(id);
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    if (!name || !email) {
+      return res.status(400).json({ error: 'Name and email are required' });
+    }
+
+    const emailLower = email.toLowerCase();
+    const existing = db.prepare('SELECT id FROM users WHERE LOWER(email) = ? AND id != ?').get(emailLower, id);
+    if (existing) {
+      return res.status(400).json({ error: 'Email already registered to another user' });
+    }
+
+    db.prepare('UPDATE users SET name = ?, email = ?, phone = ? WHERE id = ?')
+      .run(name, emailLower, phone || null, id);
+
+    if (password) {
+      const passwordHash = await bcrypt.hash(password, 10);
+      db.prepare('UPDATE users SET password_hash = ? WHERE id = ?').run(passwordHash, id);
+    }
+
+    res.json({ message: 'User updated' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to update user' });
+  }
+});
+
+// Admin only: delete a user. Cascades (foreign_keys = ON in db.js) remove
+// their family -> players -> team assignments, coach record -> team
+// assignments, and permission rows.
+router.delete('/:id', requireRole('admin'), (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const user = db.prepare('SELECT * FROM users WHERE id = ?').get(id);
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    if (parseInt(id, 10) === req.session.userId) {
+      return res.status(400).json({ error: 'You cannot delete your own account' });
+    }
+    if (user.role === 'admin') {
+      const adminCount = db.prepare("SELECT COUNT(*) as cnt FROM users WHERE role = 'admin'").get().cnt;
+      if (adminCount <= 1) {
+        return res.status(400).json({ error: 'Cannot delete the last admin account' });
+      }
+    }
+
+    db.prepare('DELETE FROM users WHERE id = ?').run(id);
+    res.json({ message: 'User deleted' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to delete user' });
   }
 });
 

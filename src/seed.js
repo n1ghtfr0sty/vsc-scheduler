@@ -132,9 +132,9 @@ async function main() {
 
   const passwordHash = bcrypt.hashSync('password123', 10);
 
-  // Admin user
-  const admin = db.prepare(`INSERT INTO users (email, password_hash, role, name, phone) VALUES (?, ?, ?, ?, ?)`).run(
-    'admin@vsc.com', passwordHash, 'admin', 'Admin User', '555-0100'
+  // Admin user — use INSERT OR REPLACE so the password is always set correctly
+  db.prepare(`INSERT OR REPLACE INTO users (id, email, password_hash, role, name, phone) VALUES (?, ?, ?, ?, ?, ?)`).run(
+    1, 'admin@vsc.com', passwordHash, 'admin', 'Admin User', '555-0100'
   );
 
   // Coaches

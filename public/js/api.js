@@ -1,24 +1,49 @@
+/**
+ * Escape user-provided strings to prevent XSS attacks.
+ * Converts HTML-special characters to their entity equivalents.
+ * Usage: element.textContent = escapeHtml(userInput);
+ */
+function escapeHtml(str) {
+  if (typeof str !== 'string') return '';
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#x27;')
+    .replace(/\//g, '&#x2F;');
+}
+
+window.escapeHtml = escapeHtml;
+
 const API = {
+  // CSRF token for state-changing requests. Populated from any API response that
+  // includes `csrfToken` (login, register, /api/auth/me). The backend rejects
+  // POST/PUT/DELETE/PATCH without a matching X-CSRF-Token header.
+  csrfToken: null,
+
   async request(endpoint, options = {}) {
     const token = localStorage.getItem('token');
     const headers = {
       'Content-Type': 'application/json',
       ...options.headers
     };
-    
+
     if (token) {
       headers['Authorization'] = `Bearer ${token}`;
     }
 
-    console.log('API Request:', endpoint, 'Token:', token ? 'yes' : 'no');
+    // Attach CSRF token on state-changing requests (safe methods don't need it).
+    const method = (options.method || 'GET').toUpperCase();
+    if (this.csrfToken && !['GET', 'HEAD', 'OPTIONS'].includes(method)) {
+      headers['X-CSRF-Token'] = this.csrfToken;
+    }
 
     const response = await fetch(endpoint, {
       ...options,
       headers,
       credentials: 'include'
     });
-
-    console.log('API Response:', endpoint, response.status);
 
     const contentType = response.headers.get('content-type');
     if (!contentType || !contentType.includes('application/json')) {
@@ -27,6 +52,11 @@ const API = {
     }
 
     const data = await response.json();
+
+    // Capture/refresh the CSRF token whenever the backend sends one.
+    if (data && typeof data === 'object' && data.csrfToken) {
+      this.csrfToken = data.csrfToken;
+    }
 
     if (!response.ok) {
       throw new Error(data.error || 'Request failed');
@@ -206,6 +236,31 @@ const API = {
     }
   },
 
+  events: {
+    async getAll(params = {}) {
+      const query = new URLSearchParams(params).toString();
+      return API.request(`/api/events${query ? '?' + query : ''}`);
+    },
+    async getOne(id) {
+      return API.request(`/api/events/${id}`);
+    },
+    async create(data) {
+      return API.request('/api/events', {
+        method: 'POST',
+        body: JSON.stringify(data)
+      });
+    },
+    async update(id, data) {
+      return API.request(`/api/events/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(data)
+      });
+    },
+    async delete(id) {
+      return API.request(`/api/events/${id}`, { method: 'DELETE' });
+    }
+  },
+
   games: {
     async getAll(params = {}) {
       const query = new URLSearchParams(params).toString();
@@ -235,6 +290,21 @@ const API = {
   users: {
     async getAll() {
       return API.request('/api/users');
+    },
+    async create(data) {
+      return API.request('/api/users', {
+        method: 'POST',
+        body: JSON.stringify(data)
+      });
+    },
+    async update(id, data) {
+      return API.request(`/api/users/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(data)
+      });
+    },
+    async delete(id) {
+      return API.request(`/api/users/${id}`, { method: 'DELETE' });
     },
     async updateRole(id, role) {
       return API.request(`/api/users/${id}/role`, {
