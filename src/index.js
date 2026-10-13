@@ -3,6 +3,7 @@ const express = require('express');
 const session = require('express-session');
 const path = require('path');
 const crypto = require('crypto');
+const os = require('os');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 
@@ -14,7 +15,16 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 // --- Security Headers (helmet) ---
-app.use(helmet());
+// The app is normally served over plain HTTP on the LAN, where
+// `upgrade-insecure-requests` and HSTS make browsers rewrite every /css and /js
+// request to https:// and fail with ERR_SSL_PROTOCOL_ERROR (blank unstyled page
+// on any non-localhost client). Enable both only when TLS actually terminates
+// in front of the app: set HTTPS_ENABLED=true.
+const HTTPS_ENABLED = process.env.HTTPS_ENABLED === 'true';
+
+// CSP and HSTS are configured explicitly below; disable helmet's own copies so
+// the headers are not set twice.
+app.use(helmet({ contentSecurityPolicy: false, strictTransportSecurity: false }));
 app.use(helmet.contentSecurityPolicy({
   directives: {
     defaultSrc: ["'self'"],
@@ -29,9 +39,12 @@ app.use(helmet.contentSecurityPolicy({
     objectSrc: ["'none'"],
     baseUri: ["'self'"],
     formAction: ["'self'"],
+    upgradeInsecureRequests: HTTPS_ENABLED ? [] : null,
   },
 }));
-app.use(helmet.hsts({ maxAge: 31536000, includeSubDomains: true }));
+if (HTTPS_ENABLED) {
+  app.use(helmet.hsts({ maxAge: 31536000, includeSubDomains: true }));
+}
 
 // --- Session Secret (cryptographically random, stored in .env) ---
 let sessionSecret = process.env.SESSION_SECRET;
@@ -129,6 +142,15 @@ app.use((err, req, res, next) => {
   res.status(500).json({ error: 'Internal server error' });
 });
 
+// Non-internal IPv4 addresses of this host, so the startup banner prints the
+// address a phone/tablet can actually reach instead of a hardcoded one.
+function lanAddresses() {
+  return Object.values(os.networkInterfaces())
+    .flat()
+    .filter((iface) => iface && iface.family === 'IPv4' && !iface.internal)
+    .map((iface) => iface.address);
+}
+
 async function startServer() {
   await getDb();
   console.log('Database initialized');
@@ -139,7 +161,9 @@ async function startServer() {
   app.listen(Number(PORT), HOST, () => {
     console.log(`VSC Scheduler running on http://${HOST === '0.0.0.0' ? '0.0.0.0 (all interfaces)' : HOST}:${PORT}`);
     console.log(`Access locally: http://localhost:${PORT}`);
-    console.log(`Access from network: http://172.21.233.71:${PORT}`);
+    for (const addr of lanAddresses()) {
+      console.log(`Access from network: http://${addr}:${PORT}`);
+    }
   });
 }
 

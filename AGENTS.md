@@ -28,6 +28,7 @@ Vikings Soccer Club Game Scheduler — a Node.js Express application for schedul
 - **Frontend:** Single-page app in `public/` (app.js, calendar.js, events.js, api.js)
 - **Runtime:** Node.js 24 (pinned via `.nvmrc` and `package.json` `engines.node >=24.0.0`)
 - **Session Secret:** Must be a 64+ char random value in `.env` as `SESSION_SECRET`. Placeholders trigger a startup warning in `src/index.js`.
+- **LAN / HTTPS:** The server binds `0.0.0.0` and is reached over plain HTTP from phones on the LAN. `upgrade-insecure-requests` (CSP) and HSTS are therefore emitted only when `HTTPS_ENABLED=true`; set it only when TLS terminates in front of the app. With it enabled over plain HTTP, browsers upgrade `/css` and `/js` to `https://`, every asset fails with `ERR_SSL_PROTOCOL_ERROR`, and non-localhost clients get a blank unstyled page.
 
 ---
 
@@ -68,6 +69,7 @@ See `REVIEW.md` for the full audit, 26 remediation items, and 5-phase prioritize
 - `npm test` — tests pending (Phase 4)
 - `npm start` boots without `SESSION_SECRET` placeholder warning
 - `npm stop` terminates only the PID bound to PORT (verify with `netstat -ano | findstr :3000`)
+- LAN access from a phone: `http://<lan-ip>:3000` renders the styled SPA (startup banner lists the host's real IPv4 addresses); response must NOT contain `upgrade-insecure-requests` or `Strict-Transport-Security` unless `HTTPS_ENABLED=true`
 - Verify route routes mount in `src/index.js`
 - Confirm schema changes propagate to `src/db.js`
 - Test auth flows: login, session middleware, token validation
