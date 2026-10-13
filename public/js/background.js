@@ -1,194 +1,174 @@
 (function() {
+  'use strict';
+
   const canvas = document.getElementById('bgCanvas');
+  if (!canvas) return;
   const ctx = canvas.getContext('2d');
-  
-  let width, height;
-  let particles = [];
-  let mouse = { x: -1000, y: -1000 };
-  
+
+  const MAX_DPR = 2;
+  const FRAME_MS = 1000 / 30;
+  const SPEED = 0.6;            // world units per second
+  const LINE_STEP = 1;          // spacing of grid lines (world units)
+  const HALF_WIDTH = 7;         // lateral extent of the pitch
+  const TOUCHLINE = 5;          // |x| of the touchlines
+  const FAR = 30;               // far clip (world z)
+  const NEAR = 0.6;             // near clip (world z)
+  const PITCH_PERIOD = 10;      // distance between halfway line / center circle
+  const CIRCLE_R = 2;
+  const HORIZON = 0.34;         // horizon y as fraction of height
+
+  const reducedQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
+
+  let width = 0, height = 0, dpr = 1;
+  let rgb = '57, 255, 136';
+  let scroll = 0;
+  let rafId = 0;
+  let lastTs = 0;
+  let lastDraw = 0;
+
+  function readAccent() {
+    const v = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim();
+    const m = /^#([0-9a-f]{6})$/i.exec(v);
+    if (m) {
+      const n = parseInt(m[1], 16);
+      rgb = ((n >> 16) & 255) + ', ' + ((n >> 8) & 255) + ', ' + (n & 255);
+    }
+  }
+
   function resize() {
-    width = canvas.width = window.innerWidth;
-    height = canvas.height = window.innerHeight;
+    dpr = Math.min(window.devicePixelRatio || 1, MAX_DPR);
+    width = window.innerWidth;
+    height = window.innerHeight;
+    canvas.width = Math.round(width * dpr);
+    canvas.height = Math.round(height * dpr);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   }
-  
-  document.addEventListener('mousemove', (e) => {
-    mouse.x = e.clientX;
-    mouse.y = e.clientY;
-  });
-  
-  document.addEventListener('mouseleave', () => {
-    mouse.x = -1000;
-    mouse.y = -1000;
-  });
-  
-  class Particle {
-    constructor() {
-      this.reset();
-    }
-    
-    reset() {
-      this.x = Math.random() * width;
-      this.y = Math.random() * height;
-      this.size = Math.random() * 30 + 15;
-      this.speedX = (Math.random() - 0.5) * 0.3;
-      this.speedY = (Math.random() - 0.5) * 0.3;
-      this.opacity = Math.random() * 0.25 + 0.08;
-      this.rotation = Math.random() * Math.PI * 2;
-      this.rotationSpeed = (Math.random() - 0.5) * 0.02;
-    }
-    
-    update() {
-      this.x += this.speedX;
-      this.y += this.speedY;
-      this.rotation += this.rotationSpeed;
-      
-      if (this.x < -50) this.x = width + 50;
-      if (this.x > width + 50) this.x = -50;
-      if (this.y < -50) this.y = height + 50;
-      if (this.y > height + 50) this.y = -50;
-    }
-    
-    draw() {
-      const dx = mouse.x - this.x;
-      const dy = mouse.y - this.y;
-      const dist = Math.sqrt(dx * dx + dy * dy);
-      const lightRadius = 200;
-      
-      let brightness = 0;
-      if (dist < lightRadius) {
-        brightness = Math.pow(1 - dist / lightRadius, 2) * 0.25;
-      }
-      
-      ctx.save();
-      ctx.translate(this.x, this.y);
-      ctx.rotate(this.rotation);
-      
-      const baseAlpha = this.opacity;
-      const glowAlpha = baseAlpha + brightness * 0.5;
-      ctx.globalAlpha = glowAlpha;
-      
+
+  // Perspective projection of ground-plane point (x, z) to screen.
+  function project(x, z, f, cx, hy, camH) {
+    return [cx + (f * x) / z, hy + (f * camH) / z];
+  }
+
+  function stroke(alpha, width_) {
+    ctx.strokeStyle = 'rgba(' + rgb + ', ' + alpha.toFixed(3) + ')';
+    ctx.lineWidth = width_;
+    ctx.stroke();
+  }
+
+  function fade(z) {
+    return Math.max(0, 1 - (z - NEAR) / (FAR - NEAR));
+  }
+
+  function draw() {
+    ctx.clearRect(0, 0, width, height);
+
+    const cx = width / 2;
+    const hy = height * HORIZON;
+    const camH = 1.6;
+    const f = Math.max(width, height * 0.9) * 0.55;
+
+    ctx.lineCap = 'round';
+
+    // Longitudinal lines (converge to the vanishing point).
+    for (let x = -HALF_WIDTH; x <= HALF_WIDTH; x += LINE_STEP) {
+      const touch = Math.abs(x) === TOUCHLINE;
+      const [x0, y0] = project(x, NEAR, f, cx, hy, camH);
+      const [x1, y1] = project(x, FAR, f, cx, hy, camH);
+      const g = ctx.createLinearGradient(0, y0, 0, y1);
+      const a = touch ? 0.38 : 0.12;
+      g.addColorStop(0, 'rgba(' + rgb + ', ' + a + ')');
+      g.addColorStop(1, 'rgba(' + rgb + ', 0)');
       ctx.beginPath();
-      ctx.arc(0, 0, this.size, 0, Math.PI * 2);
-      ctx.fillStyle = brightness > 0.1 ? '#2d6a2d' : '#228B22';
-      ctx.fill();
-      
-      ctx.strokeStyle = brightness > 0.1 ? '#ffd700' : '#228B22';
-      ctx.lineWidth = 1 + brightness * 2;
+      ctx.moveTo(x0, y0);
+      ctx.lineTo(x1, y1);
+      ctx.strokeStyle = g;
+      ctx.lineWidth = touch ? 1.6 : 1;
       ctx.stroke();
-      
-      this.drawPattern(brightness);
-      
-      ctx.restore();
     }
-    
-    drawPattern(brightness) {
-      const patternAlpha = 0.3 + brightness * 0.5;
-      ctx.strokeStyle = brightness > 0.1 
-        ? `rgba(255, 215, 0, ${patternAlpha})` 
-        : 'rgba(255, 215, 0, 0.3)';
-      ctx.lineWidth = 1 + brightness;
-      
-      const r = this.size;
+
+    // Transverse lines, scrolling toward the camera.
+    const offset = scroll % LINE_STEP;
+    for (let z = FAR - offset; z > NEAR; z -= LINE_STEP) {
+      const [xl, y] = project(-HALF_WIDTH, z, f, cx, hy, camH);
+      const [xr] = project(HALF_WIDTH, z, f, cx, hy, camH);
       ctx.beginPath();
-      ctx.arc(0, 0, r * 0.4, 0, Math.PI * 2);
-      ctx.stroke();
-      
-      for (let i = 0; i < 5; i++) {
-        const angle = (i * Math.PI * 2) / 5;
-        const x1 = Math.cos(angle) * r * 0.4;
-        const y1 = Math.sin(angle) * 0.4;
-        const x2 = Math.cos(angle) * r;
-        const y2 = Math.sin(angle) * r;
-        
-        ctx.beginPath();
-        ctx.moveTo(x1, y1);
-        ctx.lineTo(x2, y2);
-        ctx.stroke();
+      ctx.moveTo(xl, y);
+      ctx.lineTo(xr, y);
+      stroke(0.14 * fade(z), 1);
+    }
+
+    // Halfway line + center circle, repeating every PITCH_PERIOD.
+    const phase = scroll % PITCH_PERIOD;
+    for (let zc = FAR - phase; zc > NEAR + CIRCLE_R; zc -= PITCH_PERIOD) {
+      const k = fade(zc);
+      if (k <= 0) continue;
+
+      const [hl, hyy] = project(-TOUCHLINE, zc, f, cx, hy, camH);
+      const [hr] = project(TOUCHLINE, zc, f, cx, hy, camH);
+      ctx.beginPath();
+      ctx.moveTo(hl, hyy);
+      ctx.lineTo(hr, hyy);
+      stroke(0.4 * k, 1.6);
+
+      ctx.beginPath();
+      const STEPS = 48;
+      for (let i = 0; i <= STEPS; i++) {
+        const t = (i / STEPS) * Math.PI * 2;
+        const z = zc + Math.sin(t) * CIRCLE_R;
+        if (z <= NEAR) continue;
+        const [px, py] = project(Math.cos(t) * CIRCLE_R, z, f, cx, hy, camH);
+        if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
       }
+      stroke(0.4 * k, 1.6);
     }
   }
-  
-  function drawCandleLight() {
-    if (mouse.x < 0 || mouse.y < 0) return;
-    
-    const gradient = ctx.createRadialGradient(
-      mouse.x, mouse.y, 0,
-      mouse.x, mouse.y, 300
-    );
-    gradient.addColorStop(0, 'rgba(255, 215, 0, 0.03)');
-    gradient.addColorStop(0.25, 'rgba(255, 180, 0, 0.015)');
-    gradient.addColorStop(0.5, 'rgba(255, 150, 0, 0.005)');
-    gradient.addColorStop(1, 'rgba(255, 215, 0, 0)');
-    
-    ctx.fillStyle = gradient;
-    ctx.fillRect(0, 0, width, height);
+
+  function frame(ts) {
+    rafId = requestAnimationFrame(frame);
+    if (ts - lastDraw < FRAME_MS) return;
+    lastDraw = ts;
+    if (lastTs) scroll += ((ts - lastTs) / 1000) * SPEED;
+    lastTs = ts;
+    draw();
   }
-  
-  function drawCandleGlow() {
-    if (mouse.x < 0 || mouse.y < 0) return;
-    
-    ctx.save();
-    ctx.globalCompositeOperation = 'lighter';
-    
-    const gradient = ctx.createRadialGradient(
-      mouse.x, mouse.y, 0,
-      mouse.x, mouse.y, 120
-    );
-    gradient.addColorStop(0, 'rgba(255, 245, 200, 0.125)');
-    gradient.addColorStop(0.15, 'rgba(255, 215, 0, 0.09)');
-    gradient.addColorStop(0.4, 'rgba(255, 180, 0, 0.04)');
-    gradient.addColorStop(0.7, 'rgba(255, 150, 0, 0.015)');
-    gradient.addColorStop(1, 'rgba(255, 215, 0, 0)');
-    
-    ctx.beginPath();
-    ctx.arc(mouse.x, mouse.y, 120, 0, Math.PI * 2);
-    ctx.fillStyle = gradient;
-    ctx.fill();
-    
-    ctx.beginPath();
-    ctx.arc(mouse.x, mouse.y, 6, 0, Math.PI * 2);
-    ctx.fillStyle = 'rgba(255, 255, 240, 0.25)';
-    ctx.shadowColor = '#ffd700';
-    ctx.shadowBlur = 8;
-    ctx.fill();
-    
-    ctx.beginPath();
-    ctx.arc(mouse.x, mouse.y, 3, 0, Math.PI * 2);
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
-    ctx.fill();
-    
-    ctx.restore();
+
+  function shouldAnimate() {
+    return !document.hidden && !reducedQuery.matches;
   }
-  
-  function init() {
-    resize();
-    const particleCount = Math.min(Math.floor(width * height / 12000), 40);
-    
-    for (let i = 0; i < particleCount; i++) {
-      particles.push(new Particle());
-    }
+
+  function start() {
+    if (rafId || !shouldAnimate()) return;
+    lastTs = 0;
+    rafId = requestAnimationFrame(frame);
   }
-  
-  function animate() {
-    ctx.fillStyle = '#0d1117';
-    ctx.fillRect(0, 0, width, height);
-    
-    drawCandleLight();
-    
-    particles.forEach(p => {
-      p.update();
-      p.draw();
-    });
-    
-    drawCandleGlow();
-    
-    requestAnimationFrame(animate);
+
+  function stop() {
+    if (rafId) cancelAnimationFrame(rafId);
+    rafId = 0;
   }
-  
+
+  function sync() {
+    stop();
+    if (shouldAnimate()) start();
+    else draw();
+  }
+
+  let resizePending = false;
   window.addEventListener('resize', () => {
-    resize();
+    if (resizePending) return;
+    resizePending = true;
+    requestAnimationFrame(() => {
+      resizePending = false;
+      resize();
+      if (!rafId) draw();
+    });
   });
-  
-  init();
-  animate();
+
+  document.addEventListener('visibilitychange', sync);
+  if (reducedQuery.addEventListener) reducedQuery.addEventListener('change', sync);
+
+  readAccent();
+  resize();
+  scroll = 3; // pleasant static composition for reduced motion
+  sync();
 })();
