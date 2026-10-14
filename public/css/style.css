@@ -1136,3 +1136,77 @@ select option {
     display: none !important;
   }
 }
+
+/* Dashboard action hub */
+a.stat-card {
+  display: block;
+  color: inherit;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+a.stat-card:focus-visible,
+.clickable:focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: 2px;
+}
+
+.quick-actions {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.clickable {
+  cursor: pointer;
+}
+
+.next-up {
+  border-left: 4px solid var(--gold);
+  background: linear-gradient(135deg, var(--dark-card) 0%, rgba(34, 139, 34, 0.18) 100%);
+  transition: transform 0.2s, box-shadow 0.2s, border-color 0.2s;
+}
+
+.next-up.clickable:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.35);
+  border-color: var(--gold-light);
+}
+
+.next-up__label {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.next-up__countdown {
+  color: var(--gold);
+  font-size: 1.5rem;
+  font-weight: bold;
+  margin: 0.25rem 0;
+}
+
+.next-up__teams {
+  font-size: 1.25rem;
+  font-weight: bold;
+}
+
+.next-up__meta {
+  color: var(--text-muted);
+  margin: 0.25rem 0 0.75rem;
+}
+
+.next-up__cta {
+  color: var(--primary-light);
+  font-weight: 600;
+}
+
+.game-card.clickable:focus-visible {
+  outline-offset: 0;
+}
+
+.active-filter {
+  color: var(--text-muted);
+  margin-bottom: 1rem;
+}
