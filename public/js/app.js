@@ -150,6 +150,58 @@ const App = {
     `;
   },
 
+  // Escapes user-provided text for safe interpolation into innerHTML (null/undefined -> '')
+  escapeHtml(value) {
+    if (value === null || value === undefined) return '';
+    return String(value)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  },
+
+  // Local-time YYYY-MM-DD (game dates are stored in local time, never UTC)
+  localDateString(date) {
+    const pad = (n) => String(n).padStart(2, '0');
+    return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+  },
+
+  // Shared by dashboard tiles and /schedule?filter=... so counts always match the list
+  applyQuickFilter(games, filter, homeLocation) {
+    const today = this.localDateString(new Date());
+    const weekEnd = new Date();
+    weekEnd.setDate(weekEnd.getDate() + 6);
+    const weekEndStr = this.localDateString(weekEnd);
+    const byStart = (a, b) => a.game_date.localeCompare(b.game_date) || a.start_time.localeCompare(b.start_time);
+
+    switch (filter) {
+      case 'week':
+        return games.filter(g => g.game_date >= today && g.game_date <= weekEndStr).sort(byStart);
+      case 'upcoming':
+        return games.filter(g => g.game_date >= today).sort(byStart);
+      case 'conflicts':
+        return games.filter(g => g.has_conflict);
+      case 'home': {
+        const home = (homeLocation || 'Evergreen').toLowerCase();
+        return games.filter(g => g.location && g.location.toLowerCase() === home);
+      }
+      default:
+        return games;
+    }
+  },
+
+  formatCountdown(game, now) {
+    const start = new Date(`${game.game_date}T${game.start_time}`);
+    const mins = Math.round((start - now) / 60000);
+    if (mins <= 0) return 'In progress';
+    if (mins < 60) return `Starts in ${mins} min`;
+    const hours = Math.floor(mins / 60);
+    if (hours < 24) return `Starts in ${hours}h ${mins % 60}m`;
+    const days = Math.floor(hours / 24);
+    return `Starts in ${days} day${days === 1 ? '' : 's'} ${hours % 24}h`;
+  },
+
   async renderDashboard() {
     if (!Auth.requireAuth()) return;
 
@@ -164,35 +216,76 @@ const App = {
         Auth.can('events', 'view') ? API.events.getAll() : Promise.resolve({ events: [] })
       ]);
 
-      const totalGames = gamesData.games.length;
-      const totalTeams = teamsData.teams?.length || 0;
-      const today = new Date().toISOString().split('T')[0];
-      const thisWeekStart = new Date();
-      thisWeekStart.setDate(thisWeekStart.getDate() - thisWeekStart.getDay());
-      const thisWeekEnd = new Date(thisWeekStart);
-      thisWeekEnd.setDate(thisWeekEnd.getDate() + 6);
-      
-      const gamesThisWeek = gamesData.games.filter(g => {
-        const d = new Date(g.game_date);
-        return d >= thisWeekStart && d <= thisWeekEnd;
-      }).length;
-      
-      const upcomingGames = gamesData.games.filter(g => new Date(g.game_date) >= new Date(today)).length;
-      const conflicts = gamesData.games.filter(g => g.has_conflict).length;
-      
+      const e = this.escapeHtml;
+      const games = gamesData.games;
+      const homeLocation = settingsData.settings.home_location || 'Evergreen';
+      const isAdmin = Auth.isAdmin();
       const isCoach = Auth.isCoach();
+      const canCreate = Auth.can('games', 'create');
+      const totalTeams = teamsData.teams?.length || 0;
+      const hasGames = games.length > 0;
+
+      // Upcoming = date >= today, sorted by date + start time (string compare is safe for YYYY-MM-DD / HH:MM)
+      const upcoming = this.applyQuickFilter(games, 'upcoming', homeLocation);
+      const conflictCount = this.applyQuickFilter(games, 'conflicts', homeLocation).length;
+      const stats = [
+        { label: 'This Week', filter: 'week', value: this.applyQuickFilter(games, 'week', homeLocation).length },
+        { label: 'Upcoming', filter: 'upcoming', value: upcoming.length },
+        { label: 'Total Games', filter: null, value: games.length }
+      ];
+      if (isAdmin) {
+        stats.push({ label: 'Conflicts', filter: 'conflicts', value: conflictCount, warn: conflictCount > 0 });
+      }
+      if (isCoach) {
+        stats.push({ label: 'Your Teams', href: '#/teams', value: totalTeams });
+      }
+      stats.push({ label: 'Home Games', filter: 'home', value: this.applyQuickFilter(games, 'home', homeLocation).length });
+
       const hour = new Date().getHours();
       const greeting = hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening';
       const userName = Auth.currentUser?.name?.split(' ')[0] || 'there';
 
+      // Next Up: first upcoming game for the user's teams that hasn't ended yet
+      const myTeamIds = new Set((teamsData.teams || []).map(t => Number(t.id)));
+      const pool = myTeamIds.size ? upcoming.filter(g => myTeamIds.has(Number(g.team_id))) : upcoming;
+      const now = new Date();
+      const nextGame = pool.find(g => new Date(`${g.game_date}T${g.end_time}`) > now);
+
+      const locationLink = (g) => g.location
+        ? `<a href="https://maps.google.com/?q=${encodeURIComponent(g.location)}" target="_blank" rel="noopener" class="link" onclick="event.stopPropagation()">${e(g.location)}</a>`
+        : 'TBD';
+
       main.innerHTML = `
-        <h1>${greeting}, ${userName}</h1>
-        
-        ${gamesData.games.length === 0 && totalTeams === 0 ? `
+        <div class="header-actions">
+          <h1>${e(greeting)}, ${e(userName)}</h1>
+          <div class="quick-actions">
+            ${canCreate ? `<button class="btn btn-primary" onclick="Router.navigate('/games/new')">Schedule New Game</button>` : ''}
+            <button class="btn btn-secondary" onclick="Router.navigate('/schedule')">View Schedule</button>
+          </div>
+        </div>
+
+        ${hasGames ? (nextGame ? `
+          <div class="card next-up clickable" role="button" tabindex="0"
+               onclick="App.showGameDetailsModal(${Number(nextGame.id)})"
+               onkeydown="if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); App.showGameDetailsModal(${Number(nextGame.id)}); }">
+            <div class="next-up__label">Next Up</div>
+            <div class="next-up__countdown">${e(this.formatCountdown(nextGame, now))}</div>
+            <div class="next-up__teams">${e(nextGame.team_name)} vs ${e(nextGame.opponent_name)}</div>
+            <div class="next-up__meta">${e(nextGame.game_date)} at ${e(nextGame.start_time)} &middot; ${locationLink(nextGame)}</div>
+            <span class="next-up__cta">View details &rarr;</span>
+          </div>
+        ` : `
+          <div class="card next-up">
+            <div class="next-up__label">Next Up</div>
+            <p class="empty-state">No upcoming games for your teams</p>
+          </div>
+        `) : ''}
+
+        ${!hasGames && totalTeams === 0 ? `
           <div class="card welcome-card">
             <h2>Welcome to VSC Scheduler</h2>
             <p>Get started by creating your first game or team below.
-            ${Auth.can('games', 'create') ? `
+            ${canCreate ? `
               <button class="btn btn-primary" onclick="Router.navigate('/games/new')">Schedule First Game</button>
               <button class="btn btn-secondary" onclick="Router.navigate('/schedule')">View All Games</button>
             ` : ''}
@@ -207,57 +300,31 @@ const App = {
           </div>
           <div class="dashboard-right">
             <div class="dashboard-grid">
-              <div class="stat-card">
-                <h3>This Week</h3>
-                <div class="value">${gamesThisWeek}</div>
-              </div>
-              <div class="stat-card">
-                <h3>Upcoming</h3>
-                <div class="value">${upcomingGames}</div>
-              </div>
-              <div class="stat-card">
-                <h3>Total Games</h3>
-                <div class="value">${totalGames}</div>
-              </div>
-              ${Auth.isAdmin() ? `
-                <div class="stat-card">
-                  <h3>Conflicts</h3>
-                  <div class="value ${conflicts > 0 ? 'value-warning' : ''}">${conflicts}</div>
-                </div>
-              ` : ''}
-              ${isCoach ? `
-                <div class="stat-card">
-                  <h3>Your Teams</h3>
-                  <div class="value">${totalTeams}</div>
-                </div>
-              ` : ''}
-              <div class="stat-card">
-                <h3>Home Games</h3>
-                <div class="value">${gamesData.games.filter(g => g.location && g.location.toLowerCase().includes('home')).length}</div>
-              </div>
+              ${stats.map(s => `
+                <a class="stat-card" href="${s.href || `#/schedule${s.filter ? `?filter=${s.filter}` : ''}`}">
+                  <h3>${e(s.label)}</h3>
+                  <div class="value ${s.warn ? 'value-warning' : ''}">${s.value}</div>
+                </a>
+              `).join('')}
             </div>
           </div>
         </div>
         `}
 
-        ${gamesData.games.length > 0 ? `
+        ${hasGames ? `
           <div class="card">
-            <h2>Recent Games</h2>
-            ${gamesData.games.slice(0, 5).map(game => `
-              <div class="game-card">
-                <div class="game-date">${game.game_date} at ${game.start_time}</div>
-                <div class="game-teams">${game.team_name} vs ${game.opponent_name}</div>
-                <div class="game-location">${game.location || 'TBD'}</div>
+            <h2>Upcoming</h2>
+            ${upcoming.slice(0, 5).map(game => `
+              <div class="game-card clickable" role="button" tabindex="0"
+                   onclick="App.showGameDetailsModal(${Number(game.id)})"
+                   onkeydown="if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); App.showGameDetailsModal(${Number(game.id)}); }">
+                <div class="game-date">${e(game.game_date)} at ${e(game.start_time)}</div>
+                <div class="game-teams">${e(game.team_name)} vs ${e(game.opponent_name)}</div>
+                <div class="game-location">${locationLink(game)}</div>
               </div>
             `).join('')}
-          </div>
-        ` : ''}
-
-        ${gamesData.games.length > 0 && Auth.can('games', 'create') ? `
-          <div class="card card-actions">
-            <h2>Quick Actions</h2>
-            <button class="btn btn-primary" onclick="Router.navigate('/games/new')">Schedule New Game</button>
-            <button class="btn btn-secondary" onclick="Router.navigate('/schedule')">View Schedule</button>
+            ${upcoming.length === 0 ? '<p class="empty-state">No upcoming games</p>' : ''}
+            ${upcoming.length > 5 ? '<a href="#/schedule?filter=upcoming" class="link">See all upcoming games &rarr;</a>' : ''}
           </div>
         ` : ''}
       `;
@@ -284,7 +351,7 @@ const App = {
       }
     } catch (err) {
       console.error('Dashboard error:', err);
-      main.innerHTML = `<div class="alert alert-danger">${err.message}</div>`;
+      main.innerHTML = `<div class="alert alert-danger">${this.escapeHtml(err.message)}</div>`;
     }
   },
 
@@ -312,19 +379,30 @@ const App = {
         filteredGames = filteredGames.filter(g => g.team_id == params.team_id);
       }
 
+      const quickLabels = { week: 'This Week', upcoming: 'Upcoming', conflicts: 'Conflicts', home: 'Home Games' };
+      const quick = quickLabels[params.filter] ? params.filter : null;
+      if (quick) {
+        const settingsData = quick === 'home' ? await API.settings.get() : null;
+        filteredGames = this.applyQuickFilter(filteredGames, quick, settingsData?.settings?.home_location);
+      }
+
       main.innerHTML = `
         <h1>Schedule</h1>
+        ${quick ? `
+          <p class="active-filter">Showing: <strong>${quickLabels[quick]}</strong>
+            <a href="#/schedule" class="link">Clear</a></p>
+        ` : ''}
         <div class="filter-bar">
           <select id="seasonFilter" onchange="App.filterSchedule()">
             <option value="">All Seasons</option>
             ${seasonsData.seasons.map(s => `
-              <option value="${s.id}" ${params.season_id == s.id ? 'selected' : ''}>${s.name}</option>
+              <option value="${Number(s.id)}" ${params.season_id == s.id ? 'selected' : ''}>${this.escapeHtml(s.name)}</option>
             `).join('')}
           </select>
           <select id="teamFilter" onchange="App.filterSchedule()">
             <option value="">All Teams</option>
             ${teamsData.teams.map(t => `
-              <option value="${t.id}" ${params.team_id == t.id ? 'selected' : ''}>${t.name}</option>
+              <option value="${Number(t.id)}" ${params.team_id == t.id ? 'selected' : ''}>${this.escapeHtml(t.name)}</option>
             `).join('')}
           </select>
           <button class="btn btn-outline" onclick="window.print()">Print Schedule</button>
@@ -351,16 +429,17 @@ const App = {
       grouped[game.game_date].push(game);
     });
 
+    const e = this.escapeHtml;
     return Object.entries(grouped).sort((a, b) => a[0].localeCompare(b[0])).map(([date, dayGames]) => `
       <div class="card">
-        <h3>${date}</h3>
+        <h3>${e(date)}</h3>
         ${dayGames.map(game => `
           <div class="game-card">
-            <div class="game-date">${game.start_time} - ${game.end_time}</div>
-            <div class="game-teams"><a href="#/teams/${game.team_id}" class="link">${game.team_name}</a> vs <a href="#/opponents/${game.opponent_id}" class="link">${game.opponent_name}</a></div>
-            <div class="game-location">${game.location ? `<a href="https://maps.google.com/?q=${encodeURIComponent(game.location)}" target="_blank" class="link">${game.location}</a>` : 'TBD'}</div>
-            ${game.notes ? `<div class="game-notes">${game.notes}</div>` : ''}
-            ${game.season_name ? `<div class="game-date">${game.season_name}</div>` : ''}
+            <div class="game-date">${e(game.start_time)} - ${e(game.end_time)}</div>
+            <div class="game-teams"><a href="#/teams/${Number(game.team_id)}" class="link">${e(game.team_name)}</a> vs <a href="#/opponents/${Number(game.opponent_id)}" class="link">${e(game.opponent_name)}</a></div>
+            <div class="game-location">${game.location ? `<a href="https://maps.google.com/?q=${encodeURIComponent(game.location)}" target="_blank" rel="noopener" class="link">${e(game.location)}</a>` : 'TBD'}</div>
+            ${game.notes ? `<div class="game-notes">${e(game.notes)}</div>` : ''}
+            ${game.season_name ? `<div class="game-date">${e(game.season_name)}</div>` : ''}
           </div>
         `).join('')}
       </div>
@@ -427,9 +506,13 @@ const App = {
   filterSchedule() {
     const season_id = document.getElementById('seasonFilter').value;
     const team_id = document.getElementById('teamFilter').value;
-    let query = '';
-    if (season_id) query += `season_id=${season_id}&`;
-    if (team_id) query += `team_id=${team_id}`;
+    const params = new URLSearchParams();
+    if (season_id) params.set('season_id', season_id);
+    if (team_id) params.set('team_id', team_id);
+    // Preserve the dashboard quick filter (week/upcoming/conflicts/home) across dropdown changes
+    const quick = Router.getParams().filter;
+    if (quick) params.set('filter', quick);
+    const query = params.toString();
     Router.navigate(`/schedule${query ? '?' + query : ''}`);
   },
 
@@ -1738,35 +1821,36 @@ const App = {
       }
 
       const canEditGame = Auth.can('games', 'edit');
+      const e = this.escapeHtml;
       const content = `
         <div class="form-group">
           <label>Date</label>
-          <p>${game.game_date}</p>
+          <p>${e(game.game_date)}</p>
         </div>
         <div class="form-group">
           <label>Time</label>
-          <p>${game.start_time} - ${game.end_time}</p>
+          <p>${e(game.start_time)} - ${e(game.end_time)}</p>
         </div>
         <div class="form-group">
           <label>Team</label>
-          <p>${game.team_name}</p>
+          <p>${e(game.team_name)}</p>
         </div>
         <div class="form-group">
           <label>Opponent</label>
-          <p>${game.opponent_name}</p>
+          <p>${e(game.opponent_name)}</p>
         </div>
         <div class="form-group">
           <label>Location</label>
-          <p>${game.location || 'TBD'}</p>
+          <p>${game.location ? `<a href="https://maps.google.com/?q=${encodeURIComponent(game.location)}" target="_blank" rel="noopener" class="link">${e(game.location)}</a>` : 'TBD'}</p>
         </div>
         <div class="form-group">
           <label>Season</label>
-          <p>${game.season_name || 'N/A'}</p>
+          <p>${e(game.season_name) || 'N/A'}</p>
         </div>
         ${game.notes ? `
         <div class="form-group">
           <label>Notes</label>
-          <p>${game.notes}</p>
+          <p>${e(game.notes)}</p>
         </div>
         ` : ''}
         ${game.has_conflict ? `
@@ -1775,7 +1859,7 @@ const App = {
         </div>
         ` : ''}
         <div style="margin-top: 1rem;">
-          ${canEditGame ? `<button class="btn btn-primary" onclick="closeModal(); Router.navigate('/games/${game.id}/edit')">Edit</button>` : ''}
+          ${canEditGame ? `<button class="btn btn-primary" onclick="closeModal(); Router.navigate('/games/${Number(game.id)}/edit')">Edit</button>` : ''}
           <button class="btn btn-outline" onclick="closeModal()">Close</button>
         </div>
       `;
