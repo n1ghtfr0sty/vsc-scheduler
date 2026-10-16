@@ -427,9 +427,18 @@ const App = {
 
       const quickLabels = { week: 'This Week', upcoming: 'Upcoming', conflicts: 'Conflicts', home: 'Home Games' };
       const quick = quickLabels[params.filter] ? params.filter : null;
+      let filteredEvents = eventsData.events;
       if (quick) {
         const settingsData = quick === 'home' ? await API.settings.get() : null;
         filteredGames = this.applyQuickFilter(filteredGames, quick, settingsData?.settings?.home_location);
+        // Events have no conflicts or home/away, so only the date-based filters keep them
+        const today = this.localDateString(new Date());
+        const weekEnd = new Date();
+        weekEnd.setDate(weekEnd.getDate() + 6);
+        const weekEndStr = this.localDateString(weekEnd);
+        filteredEvents = quick === 'upcoming' ? filteredEvents.filter(ev => ev.event_date >= today)
+          : quick === 'week' ? filteredEvents.filter(ev => ev.event_date >= today && ev.event_date <= weekEndStr)
+          : [];
       }
 
       main.innerHTML = `
@@ -454,7 +463,7 @@ const App = {
           <button class="btn btn-outline" onclick="window.print()">Print Schedule</button>
         </div>
         <div id="scheduleList">
-          ${this.renderScheduleList(filteredGames, eventsData.events, params)}
+          ${this.renderScheduleList(filteredGames, filteredEvents, params)}
         </div>
       `;
     } catch (err) {
