@@ -6,36 +6,72 @@ const App = {
   },
 
   setupRoutes() {
-    Router.route('/', () => this.renderLogin());
-    Router.route('/register', () => this.renderRegister());
-    Router.route('/pending', () => this.renderPending());
-    Router.route('/dashboard', () => this.renderDashboard());
-    Router.route('/schedule', () => this.renderSchedule());
-    Router.route('/games', () => this.renderGames());
-    Router.route('/games/new', () => {
-      const params = Router.getParams();
-      this.renderGameForm(null, params.date);
-    });
-    Router.route('/games/:id/edit', (params) => this.renderGameForm(params.id));
-    Router.route('/teams', () => this.renderTeams());
-    Router.route('/teams/:id', (params) => this.renderTeamDetail(params.id));
-    Router.route('/players', () => this.renderPlayers());
-    Router.route('/players/:id', (params) => this.renderPlayerDetail(params.id));
-    Router.route('/opponents', () => this.renderOpponents());
-    Router.route('/opponents/:id', (params) => this.renderOpponentDetail(params.id));
-    Router.route('/seasons', () => this.renderSeasons());
-    Router.route('/families', () => this.renderFamilies());
-    Router.route('/families/:id', (params) => this.renderFamilyDetail(params.id));
-    Router.route('/coaches', () => this.renderCoaches());
-    Router.route('/coaches/:id', (params) => this.renderCoachDetail(params.id));
-    Router.route('/settings', () => this.renderSettings());
-    Router.route('/events', () => this.renderEvents());
-    Router.route('/events/new', () => {
-      const params = Router.getParams();
-      this.renderEventForm(null, params.date);
-    });
-    Router.route('/events/:id/edit', (params) => this.renderEventForm(params.id));
-    Router.route('/users', () => this.renderUsers());
+    // Wrap a page renderer so it records itself as the "underlying view" that
+    // drawers sit on top of and that refreshView() re-renders in place.
+    const view = (fn) => (params) => this.enterView(() => fn(params || {}));
+
+    Router.route('/', view(() => this.renderLogin()));
+    Router.route('/register', view(() => this.renderRegister()));
+    Router.route('/pending', view(() => this.renderPending()));
+    Router.route('/dashboard', view(() => this.renderDashboard()));
+    Router.route('/schedule', view(() => this.renderSchedule()));
+    Router.route('/games', view(() => this.renderGames()));
+    // Drawer deep links: open over the current page (or the dashboard if none)
+    Router.route('/games/new', () => this.enterDrawerRoute(onClose =>
+      this.showGameForm(null, Router.getParams().date, { onClose })));
+    Router.route('/games/:id/edit', (params) => this.enterDrawerRoute(onClose =>
+      this.showGameForm(params.id, null, { onClose })));
+    Router.route('/teams', view(() => this.renderTeams()));
+    Router.route('/teams/:id', view((params) => this.renderTeamDetail(params.id)));
+    Router.route('/players', view(() => this.renderPlayers()));
+    Router.route('/players/:id', view((params) => this.renderPlayerDetail(params.id)));
+    Router.route('/opponents', view(() => this.renderOpponents()));
+    Router.route('/opponents/:id', view((params) => this.renderOpponentDetail(params.id)));
+    Router.route('/seasons', view(() => this.renderSeasons()));
+    Router.route('/families', view(() => this.renderFamilies()));
+    Router.route('/families/:id', view((params) => this.renderFamilyDetail(params.id)));
+    Router.route('/coaches', view(() => this.renderCoaches()));
+    Router.route('/coaches/:id', view((params) => this.renderCoachDetail(params.id)));
+    Router.route('/settings', view(() => this.renderSettings()));
+    Router.route('/events', view(() => this.renderEvents()));
+    Router.route('/events/new', () => this.enterDrawerRoute(onClose =>
+      this.showEventForm(null, Router.getParams().date, { onClose })));
+    Router.route('/events/:id/edit', (params) => this.enterDrawerRoute(onClose =>
+      this.showEventForm(params.id, null, { onClose })));
+    Router.route('/users', view(() => this.renderUsers()));
+  },
+
+  // Page navigation: discard any open drawer and remember the page for refreshView().
+  enterView(render) {
+    Drawer.onClose = null; // navigating away: don't rewrite the URL back to the old page
+    Drawer.close(true);
+    this.baseHash = window.location.hash || '#/';
+    this._baseView = render;
+    return render();
+  },
+
+  async enterDrawerRoute(openDrawer) {
+    if (!Auth.requireAuth()) return;
+    if (!this._baseView) {
+      // Deep link with nothing rendered yet: show the dashboard underneath.
+      this.baseHash = '#/dashboard';
+      this._baseView = () => this.renderDashboard();
+      await this._baseView();
+    }
+    // replaceState does not fire hashchange, so closing leaves the page untouched.
+    openDrawer(() => history.replaceState(null, '', this.baseHash));
+  },
+
+  // Re-render the underlying page after a save, keeping scroll, filters (in the
+  // URL hash) and the calendar's month/view.
+  async refreshView() {
+    if (!this._baseView) return;
+    const scrollY = window.scrollY;
+    if (window.calendar && document.getElementById('calendarContainer')) {
+      this._keepCalendar = { currentDate: new Date(window.calendar.currentDate), view: window.calendar.view };
+    }
+    await this._baseView();
+    window.scrollTo(0, scrollY);
   },
 
   renderLogin() {
@@ -259,7 +295,7 @@ const App = {
         <div class="header-actions">
           <h1>${e(greeting)}, ${e(userName)}</h1>
           <div class="quick-actions">
-            ${canCreate ? `<button class="btn btn-primary" onclick="Router.navigate('/games/new')">Schedule New Game</button>` : ''}
+            ${canCreate ? `<button class="btn btn-primary" onclick="App.showGameForm()">Schedule New Game</button>` : ''}
             <button class="btn btn-secondary" onclick="Router.navigate('/schedule')">View Schedule</button>
           </div>
         </div>
@@ -286,7 +322,7 @@ const App = {
             <h2>Welcome to VSC Scheduler</h2>
             <p>Get started by creating your first game or team below.
             ${canCreate ? `
-              <button class="btn btn-primary" onclick="Router.navigate('/games/new')">Schedule First Game</button>
+              <button class="btn btn-primary" onclick="App.showGameForm()">Schedule First Game</button>
               <button class="btn btn-secondary" onclick="Router.navigate('/schedule')">View All Games</button>
             ` : ''}
             ${Auth.can('teams', 'create') ? `
@@ -331,21 +367,31 @@ const App = {
 
       const calendarContainer = document.getElementById('calendarContainer');
       if (calendarContainer && window.Calendar) {
+        // Keep the month/view the user was browsing across a refresh
+        const keep = this._keepCalendar;
+        this._keepCalendar = null;
         window.calendar = new Calendar(calendarContainer, {
+          view: keep?.view,
           onDateClick: (date) => {
             if (Auth.can('games', 'create')) {
-              Router.navigate(`/games/new?date=${date}`);
+              this.showGameForm(null, date);
             } else {
               Router.navigate(`/schedule?date=${date}`);
             }
           },
           onGameClick: (gameId) => {
-            this.showGameDetailsModal(gameId);
+            if (Auth.can('games', 'edit')) {
+              this.showGameForm(gameId);
+            } else {
+              this.showGameDetailsModal(gameId);
+            }
           },
           onEventClick: (eventId) => {
             this.showEventDetailsModal(eventId);
           }
         });
+        // Restore the month the user was browsing before a refresh
+        if (keep) window.calendar.currentDate = keep.currentDate;
         window.calendar.setGames(gamesData.games);
         window.calendar.setEvents(eventsData.events);
       }
@@ -535,7 +581,7 @@ const App = {
       main.innerHTML = `
         <div class="header-actions">
           <h1>Games</h1>
-          ${Auth.can('games', 'create') ? `<button class="btn btn-primary" onclick="Router.navigate('/games/new')">+ New Game</button>` : ''}
+          ${Auth.can('games', 'create') ? `<button class="btn btn-primary" onclick="App.showGameForm()">+ New Game</button>` : ''}
         </div>
         <div class="card">
           <table>
@@ -560,7 +606,7 @@ const App = {
                   <td>${game.location ? `<a href="https://maps.google.com/?q=${encodeURIComponent(game.location)}" target="_blank" class="link">${game.location}</a>` : 'TBD'}</td>
                   <td>${game.season_name || 'N/A'}</td>
                   <td class="actions">
-                    ${Auth.can('games', 'edit') ? `<button class="btn btn-outline" onclick="Router.navigate('/games/${game.id}/edit')">Edit</button>` : ''}
+                    ${Auth.can('games', 'edit') ? `<button class="btn btn-outline" onclick="App.showGameForm(${game.id})">Edit</button>` : ''}
                     ${Auth.can('games', 'delete') ? `<button class="btn btn-danger" onclick="App.deleteGame(${game.id})">Delete</button>` : ''}
                   </td>
                 </tr>
@@ -575,11 +621,12 @@ const App = {
     }
   },
 
-  async renderGameForm(editId = null, prefillDate = null) {
+  async showGameForm(editId = null, prefillDate = null, { onClose = null } = {}) {
     if (!Auth.requireAuth()) return;
-
-    const main = document.getElementById('main');
-    main.innerHTML = '<div class="loading">Loading...</div>';
+    if (!Auth.can('games', editId ? 'edit' : 'create')) {
+      this.showToast('You do not have permission to ' + (editId ? 'edit' : 'create') + ' games', 'error');
+      return;
+    }
 
     try {
       const [teamsData, opponentsData, seasonsData, settingsData] = await Promise.all([
@@ -593,82 +640,90 @@ const App = {
       if (editId) {
         const gamesData = await API.games.getAll();
         game = gamesData.games.find(g => g.id == editId);
+        if (!game) {
+          this.showToast('Game not found', 'error');
+          return;
+        }
       }
 
       const defaultDuration = parseInt(settingsData.settings.default_game_duration) || 90;
       window._defaultGameDuration = defaultDuration;
       window._homeLocation = settingsData.settings.home_location || 'Evergreen';
       const gameDate = game?.game_date || prefillDate || '';
+      // Defaults for new games: pre-pick a select when there is only one choice
+      const soleTeamId = !game && teamsData.teams.length === 1 ? teamsData.teams[0].id : null;
+      const soleSeasonId = !game && seasonsData.seasons.length === 1 ? seasonsData.seasons[0].id : null;
 
-      main.innerHTML = `
-        <h1>${editId ? 'Edit Game' : 'New Game'}</h1>
-        <div class="card">
-          <form id="gameForm">
-            <input type="hidden" name="id" value="${editId || ''}">
-            <div class="form-group">
-              <label>Team *</label>
-              <select name="team_id" required>
-                <option value="">Select Team</option>
-                ${teamsData.teams.map(t => `
-                  <option value="${t.id}" ${game?.team_id == t.id ? 'selected' : ''}>${t.name}</option>
-                `).join('')}
-              </select>
-            </div>
-            <div class="form-group">
-              <label>Opponent *</label>
-              <select name="opponent_id" id="opponentSelect" required onchange="App.updateGameLocations()">
-                <option value="">Select Opponent</option>
-                ${opponentsData.opponents.map(o => `
-                  <option value="${o.id}" data-location="${o.location || ''}" ${game?.opponent_id == o.id ? 'selected' : ''}>${o.name}</option>
-                `).join('')}
-              </select>
-            </div>
-            <div class="form-group">
-              <label>Season</label>
-              <select name="season_id">
-                <option value="">Select Season</option>
-                ${seasonsData.seasons.map(s => `
-                  <option value="${s.id}" ${game?.season_id == s.id ? 'selected' : ''}>${s.name}</option>
-                `).join('')}
-              </select>
-            </div>
-            <div class="form-group">
-              <label>Location *</label>
-              <select name="location" id="locationSelect" required>
-                <option value="">Select an opponent first</option>
-              </select>
-            </div>
-            <div class="form-group">
-              <label>Date *</label>
-              <input type="date" name="game_date" value="${gameDate}" required>
-            </div>
-            <div class="form-group">
-              <label>Start Time *</label>
-              <input type="time" name="start_time" value="${game?.start_time || ''}" required>
-            </div>
-            <div class="form-group">
-              <label>End Time *</label>
-              <input type="time" name="end_time" value="${game?.end_time || ''}" required>
-            </div>
-            <div class="form-group">
-              <label>Notes</label>
-              <textarea name="notes">${game?.notes || ''}</textarea>
-            </div>
-            <div id="conflictWarning" class="alert alert-warning hidden"></div>
+      closeModal(); // dismiss the game-details modal if the drawer was opened from it
+      Drawer.open(editId ? 'Edit Game' : 'New Game', `
+        <form id="gameForm">
+          <input type="hidden" name="id" value="${escapeHtml(editId)}">
+          <div class="form-group">
+            <label>Team *</label>
+            <select name="team_id" required>
+              <option value="">Select Team</option>
+              ${teamsData.teams.map(t => `
+                <option value="${t.id}" ${game?.team_id == t.id || soleTeamId === t.id ? 'selected' : ''}>${escapeHtml(t.name)}</option>
+              `).join('')}
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Opponent *</label>
+            <select name="opponent_id" id="opponentSelect" required onchange="App.updateGameLocations()">
+              <option value="">Select Opponent</option>
+              ${opponentsData.opponents.map(o => `
+                <option value="${o.id}" data-location="${escapeHtml(o.location)}" ${game?.opponent_id == o.id ? 'selected' : ''}>${escapeHtml(o.name)}</option>
+              `).join('')}
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Season</label>
+            <select name="season_id">
+              <option value="">Select Season</option>
+              ${seasonsData.seasons.map(s => `
+                <option value="${s.id}" ${game?.season_id == s.id || soleSeasonId === s.id ? 'selected' : ''}>${escapeHtml(s.name)}</option>
+              `).join('')}
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Location *</label>
+            <select name="location" id="locationSelect" required>
+              <option value="">Select an opponent first</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Date *</label>
+            <input type="date" name="game_date" value="${escapeHtml(gameDate)}" required>
+          </div>
+          <div class="form-group">
+            <label>Start Time *</label>
+            <input type="time" name="start_time" value="${escapeHtml(game?.start_time)}" required>
+          </div>
+          <div class="form-group">
+            <label>End Time *</label>
+            <input type="time" name="end_time" value="${escapeHtml(game?.end_time)}" required>
+          </div>
+          <div class="form-group">
+            <label>Notes</label>
+            <textarea name="notes">${escapeHtml(game?.notes)}</textarea>
+          </div>
+          <div id="conflictWarning" class="alert alert-warning hidden"></div>
+          <div class="drawer-actions">
             <button type="submit" class="btn btn-primary">${editId ? 'Update' : 'Create'} Game</button>
-            <button type="button" class="btn btn-outline" onclick="Router.navigate('/games')">Cancel</button>
-          </form>
-        </div>
-      `;
+            <button type="button" class="btn btn-outline" onclick="Drawer.close()">Cancel</button>
+          </div>
+        </form>
+      `, { onClose });
 
-      const startTimeInput = document.querySelector('[name="start_time"]');
-      const endTimeInput = document.querySelector('[name="end_time"]');
-      startTimeInput.addEventListener('change', () => App.calculateEndTime());
+      const form = document.getElementById('gameForm');
+      // End time follows start time (default game duration from settings)
+      form.querySelector('[name="start_time"]').addEventListener('change', () => App.calculateEndTime());
 
       // If editing, pre-populate the location dropdown for the saved opponent
       if (game) App.updateGameLocations(game.location);
+      Drawer.snapshot(); // programmatic setup above is not an unsaved change
 
-      document.getElementById('gameForm').addEventListener('submit', async (e) => {
+      form.addEventListener('submit', async (e) => {
         e.preventDefault();
         const formData = new FormData(e.target);
         const data = {
@@ -690,18 +745,19 @@ const App = {
             await API.games.create(data);
             this.showToast('Game created', 'success');
           }
-          Router.navigate('/games');
+          Drawer.close(true);
+          this.refreshView();
         } catch (err) {
           this.showToast(err.message, 'error');
         }
       });
 
-      document.getElementById('gameForm').addEventListener('change', async (e) => {
-        const team_id = document.querySelector('[name="team_id"]').value;
-        const game_date = document.querySelector('[name="game_date"]').value;
-        const start_time = document.querySelector('[name="start_time"]').value;
-        const end_time = document.querySelector('[name="end_time"]').value;
-        const location = document.querySelector('[name="location"]').value;
+      form.addEventListener('change', async () => {
+        const team_id = form.querySelector('[name="team_id"]').value;
+        const game_date = form.querySelector('[name="game_date"]').value;
+        const start_time = form.querySelector('[name="start_time"]').value;
+        const end_time = form.querySelector('[name="end_time"]').value;
+        const location = form.querySelector('[name="location"]').value;
 
         if (team_id && game_date && start_time && end_time) {
           try {
@@ -715,12 +771,13 @@ const App = {
             });
 
             const warningEl = document.getElementById('conflictWarning');
+            if (!warningEl) return; // drawer closed while the request was in flight
             if (result.conflicts && result.conflicts.length > 0) {
               warningEl.classList.remove('hidden');
               warningEl.innerHTML = `
                 <strong>Conflicts detected:</strong><br>
                 ${result.conflicts.map(c => `
-                  ${c.type} conflict: ${c.game.team_name} vs ${c.game.opponent_name} at ${c.game.start_time}-${c.game.end_time} (${c.game.location || 'TBD'})
+                  ${escapeHtml(c.type)} conflict: ${escapeHtml(c.game.team_name)} vs ${escapeHtml(c.game.opponent_name)} at ${escapeHtml(c.game.start_time)}-${escapeHtml(c.game.end_time)} (${escapeHtml(c.game.location || 'TBD')})
                 `).join('<br>')}
               `;
             } else {
@@ -732,7 +789,7 @@ const App = {
         }
       });
     } catch (err) {
-      main.innerHTML = `<div class="alert alert-danger">${err.message}</div>`;
+      this.showToast(err.message, 'error');
     }
   },
 
@@ -750,10 +807,10 @@ const App = {
 
     // Build the two location options: VSC home field and the opponent's field
     let options = `<option value="">Select Location</option>`;
-    options += `<option value="${homeLocation}" ${currentLocation === homeLocation ? 'selected' : ''}>${homeLocation} (VSC Home)</option>`;
+    options += `<option value="${escapeHtml(homeLocation)}" ${currentLocation === homeLocation ? 'selected' : ''}>${escapeHtml(homeLocation)} (VSC Home)</option>`;
 
     if (opponentLocation) {
-      options += `<option value="${opponentLocation}" ${currentLocation === opponentLocation ? 'selected' : ''}>${opponentLocation} (${opponentName})</option>`;
+      options += `<option value="${escapeHtml(opponentLocation)}" ${currentLocation === opponentLocation ? 'selected' : ''}>${escapeHtml(opponentLocation)} (${escapeHtml(opponentName)})</option>`;
     } else {
       options += `<option value="" disabled>Opponent has no location on file</option>`;
     }
@@ -909,28 +966,30 @@ const App = {
     const coachesData = await API.coaches.getAll();
     const coaches = coachesData.coaches || [];
 
-    this.showModal(editId ? 'Edit Team' : 'New Team', `
+    Drawer.open(editId ? 'Edit Team' : 'New Team', `
       <form id="teamForm">
         <input type="hidden" name="id" value="${editId || ''}">
         <div class="form-group">
           <label>Name *</label>
-          <input type="text" name="name" value="${team?.name || ''}" required>
+          <input type="text" name="name" value="${escapeHtml(team?.name)}" required>
         </div>
         <div class="form-group">
           <label>Age Group</label>
-          <input type="text" name="age_group" value="${team?.age_group || ''}">
+          <input type="text" name="age_group" value="${escapeHtml(team?.age_group)}">
         </div>
         <div class="form-group">
           <label>Coaches</label>
           <select name="coaches" multiple style="height: 120px;">
             ${coaches.map(c => `
-              <option value="${c.id}" ${currentCoaches.includes(String(c.id)) ? 'selected' : ''}>${c.name}</option>
+              <option value="${c.id}" ${currentCoaches.includes(String(c.id)) ? 'selected' : ''}>${escapeHtml(c.name)}</option>
             `).join('')}
           </select>
           <small style="color: var(--text-dim);">Hold Ctrl/Cmd to select multiple</small>
         </div>
-        <button type="submit" class="btn btn-primary">${editId ? 'Update' : 'Create'}</button>
-        <button type="button" class="btn btn-outline" onclick="closeModal()">Cancel</button>
+        <div class="drawer-actions">
+          <button type="submit" class="btn btn-primary">${editId ? 'Update' : 'Create'}</button>
+          <button type="button" class="btn btn-outline" onclick="Drawer.close()">Cancel</button>
+        </div>
       </form>
     `);
 
@@ -968,8 +1027,8 @@ const App = {
           await API.teams.create(data);
           this.showToast('Team created', 'success');
         }
-        closeModal();
-        this.renderTeams();
+        Drawer.close(true);
+        this.refreshView();
       } catch (err) {
         this.showToast(err.message, 'error');
       }
@@ -1141,28 +1200,30 @@ const App = {
       player = playersData.players.find(p => p.id == editId);
     }
 
-    this.showModal(editId ? 'Edit Player' : 'New Player', `
+    Drawer.open(editId ? 'Edit Player' : 'New Player', `
       <form id="playerForm">
         <input type="hidden" name="id" value="${editId || ''}">
         <div class="form-group">
           <label>Name *</label>
-          <input type="text" name="name" value="${player?.name || ''}" required>
+          <input type="text" name="name" value="${escapeHtml(player?.name)}" required>
         </div>
         <div class="form-group">
           <label>Birth Date</label>
-          <input type="date" name="birth_date" value="${player?.birth_date || ''}">
+          <input type="date" name="birth_date" value="${escapeHtml(player?.birth_date)}">
         </div>
         <div class="form-group">
           <label>Family *</label>
           <select name="family_id" required>
             <option value="">Select Family</option>
             ${familiesData.families.map(f => `
-              <option value="${f.id}" ${player?.family_id == f.id ? 'selected' : ''}>${f.name}</option>
+              <option value="${f.id}" ${player?.family_id == f.id ? 'selected' : ''}>${escapeHtml(f.name)}</option>
             `).join('')}
           </select>
         </div>
-        <button type="submit" class="btn btn-primary">${editId ? 'Update' : 'Create'}</button>
-        <button type="button" class="btn btn-outline" onclick="closeModal()">Cancel</button>
+        <div class="drawer-actions">
+          <button type="submit" class="btn btn-primary">${editId ? 'Update' : 'Create'}</button>
+          <button type="button" class="btn btn-outline" onclick="Drawer.close()">Cancel</button>
+        </div>
       </form>
     `);
 
@@ -1183,8 +1244,8 @@ const App = {
           await API.players.create(data);
           this.showToast('Player created', 'success');
         }
-        closeModal();
-        this.renderPlayers();
+        Drawer.close(true);
+        this.refreshView();
       } catch (err) {
         this.showToast(err.message, 'error');
       }
@@ -1261,31 +1322,33 @@ const App = {
       opponent = data.opponents.find(o => o.id == editId);
     }
 
-    this.showModal(editId ? 'Edit Opponent' : 'New Opponent', `
+    Drawer.open(editId ? 'Edit Opponent' : 'New Opponent', `
       <form id="opponentForm">
         <input type="hidden" name="id" value="${editId || ''}">
         <div class="form-group">
           <label>Name *</label>
-          <input type="text" name="name" value="${opponent?.name || ''}" required>
+          <input type="text" name="name" value="${escapeHtml(opponent?.name)}" required>
         </div>
         <div class="form-group">
           <label>Contact Name</label>
-          <input type="text" name="contact_name" value="${opponent?.contact_name || ''}">
+          <input type="text" name="contact_name" value="${escapeHtml(opponent?.contact_name)}">
         </div>
         <div class="form-group">
           <label>Phone</label>
-          <input type="tel" name="phone" value="${opponent?.phone || ''}">
+          <input type="tel" name="phone" value="${escapeHtml(opponent?.phone)}">
         </div>
         <div class="form-group">
           <label>Email</label>
-          <input type="email" name="email" value="${opponent?.email || ''}">
+          <input type="email" name="email" value="${escapeHtml(opponent?.email)}">
         </div>
         <div class="form-group">
           <label>Location</label>
-          <input type="text" name="location" value="${opponent?.location || ''}">
+          <input type="text" name="location" value="${escapeHtml(opponent?.location)}">
         </div>
-        <button type="submit" class="btn btn-primary">${editId ? 'Update' : 'Create'}</button>
-        <button type="button" class="btn btn-outline" onclick="closeModal()">Cancel</button>
+        <div class="drawer-actions">
+          <button type="submit" class="btn btn-primary">${editId ? 'Update' : 'Create'}</button>
+          <button type="button" class="btn btn-outline" onclick="Drawer.close()">Cancel</button>
+        </div>
       </form>
     `);
 
@@ -1308,8 +1371,8 @@ const App = {
           await API.opponents.create(data);
           this.showToast('Opponent created', 'success');
         }
-        closeModal();
-        this.renderOpponents();
+        Drawer.close(true);
+        this.refreshView();
       } catch (err) {
         this.showToast(err.message, 'error');
       }
@@ -1439,16 +1502,16 @@ const App = {
       season = data.seasons.find(s => s.id == editId);
     }
 
-    this.showModal(editId ? 'Edit Season' : 'New Season', `
+    Drawer.open(editId ? 'Edit Season' : 'New Season', `
       <form id="seasonForm">
         <input type="hidden" name="id" value="${editId || ''}">
         <div class="form-group">
           <label>Name *</label>
-          <input type="text" name="name" value="${season?.name || ''}" required placeholder="e.g., Fall '25">
+          <input type="text" name="name" value="${escapeHtml(season?.name)}" required placeholder="e.g., Fall '25">
         </div>
         <div class="form-group">
           <label>Year *</label>
-          <input type="text" name="year" value="${season?.year || ''}" required placeholder="e.g., 2025">
+          <input type="text" name="year" value="${escapeHtml(season?.year)}" required placeholder="e.g., 2025">
         </div>
         <div class="form-group">
           <label>Type *</label>
@@ -1461,14 +1524,16 @@ const App = {
         </div>
         <div class="form-group">
           <label>Start Date</label>
-          <input type="date" name="start_date" value="${season?.start_date || ''}">
+          <input type="date" name="start_date" value="${escapeHtml(season?.start_date)}">
         </div>
         <div class="form-group">
           <label>End Date</label>
-          <input type="date" name="end_date" value="${season?.end_date || ''}">
+          <input type="date" name="end_date" value="${escapeHtml(season?.end_date)}">
         </div>
-        <button type="submit" class="btn btn-primary">${editId ? 'Update' : 'Create'}</button>
-        <button type="button" class="btn btn-outline" onclick="closeModal()">Cancel</button>
+        <div class="drawer-actions">
+          <button type="submit" class="btn btn-primary">${editId ? 'Update' : 'Create'}</button>
+          <button type="button" class="btn btn-outline" onclick="Drawer.close()">Cancel</button>
+        </div>
       </form>
     `);
 
@@ -1491,8 +1556,8 @@ const App = {
           await API.seasons.create(data);
           this.showToast('Season created', 'success');
         }
-        closeModal();
-        this.renderSeasons();
+        Drawer.close(true);
+        this.refreshView();
       } catch (err) {
         this.showToast(err.message, 'error');
       }
@@ -1613,7 +1678,7 @@ const App = {
       coach = coachesData.coaches.find(c => c.id == editId);
     }
 
-    this.showModal(editId ? 'Edit Coach' : 'New Coach', `
+    Drawer.open(editId ? 'Edit Coach' : 'New Coach', `
       <form id="coachForm">
         <input type="hidden" name="id" value="${editId || ''}">
         ${!editId ? `
@@ -1624,14 +1689,16 @@ const App = {
         ` : ''}
         <div class="form-group">
           <label>Name *</label>
-          <input type="text" name="name" value="${coach?.name || ''}" required>
+          <input type="text" name="name" value="${escapeHtml(coach?.name)}" required>
         </div>
         <div class="form-group">
           <label>Phone</label>
-          <input type="tel" name="phone" value="${coach?.phone || ''}">
+          <input type="tel" name="phone" value="${escapeHtml(coach?.phone)}">
         </div>
-        <button type="submit" class="btn btn-primary">${editId ? 'Update' : 'Create'}</button>
-        <button type="button" class="btn btn-outline" onclick="closeModal()">Cancel</button>
+        <div class="drawer-actions">
+          <button type="submit" class="btn btn-primary">${editId ? 'Update' : 'Create'}</button>
+          <button type="button" class="btn btn-outline" onclick="Drawer.close()">Cancel</button>
+        </div>
       </form>
     `);
 
@@ -1652,8 +1719,8 @@ const App = {
           await API.coaches.create(data);
           this.showToast('Coach created', 'success');
         }
-        closeModal();
-        this.renderCoaches();
+        Drawer.close(true);
+        this.refreshView();
       } catch (err) {
         this.showToast(err.message, 'error');
       }
@@ -1859,7 +1926,7 @@ const App = {
         </div>
         ` : ''}
         <div style="margin-top: 1rem;">
-          ${canEditGame ? `<button class="btn btn-primary" onclick="closeModal(); Router.navigate('/games/${Number(game.id)}/edit')">Edit</button>` : ''}
+          ${canEditGame ? `<button class="btn btn-primary" onclick="App.showGameForm(${Number(game.id)})">Edit</button>` : ''}
           <button class="btn btn-outline" onclick="closeModal()">Close</button>
         </div>
       `;
@@ -2180,32 +2247,32 @@ const App = {
     }
   },
 
-  async showEventForm(editId = null) {
+  async showEventForm(editId = null, prefillDate = null, { onClose = null } = {}) {
     let event = null;
     if (editId) {
       const data = await API.events.getOne(editId);
       event = data.event;
     }
 
-    this.showModal(editId ? 'Edit Event' : 'New Event', `
+    Drawer.open(editId ? 'Edit Event' : 'New Event', `
       <form id="eventForm">
         <input type="hidden" name="id" value="${editId || ''}">
         <div class="form-group">
           <label>Name *</label>
-          <input type="text" name="name" value="${event?.name || ''}" required placeholder="e.g., Fall Tournament">
+          <input type="text" name="name" value="${escapeHtml(event?.name)}" required placeholder="e.g., Fall Tournament">
         </div>
         <div class="form-group">
           <label>Date *</label>
-          <input type="date" name="event_date" value="${event?.event_date || ''}" required>
+          <input type="date" name="event_date" value="${escapeHtml(event?.event_date || prefillDate)}" required>
         </div>
         <div class="form-group" style="display:flex;gap:1rem;">
           <div style="flex:1;">
             <label>Start Time</label>
-            <input type="time" name="start_time" value="${event?.start_time || ''}">
+            <input type="time" name="start_time" value="${escapeHtml(event?.start_time)}">
           </div>
           <div style="flex:1;">
             <label>End Time</label>
-            <input type="time" name="end_time" value="${event?.end_time || ''}">
+            <input type="time" name="end_time" value="${escapeHtml(event?.end_time)}">
           </div>
         </div>
         <div class="form-group">
@@ -2220,20 +2287,22 @@ const App = {
         </div>
         <div class="form-group">
           <label>Location</label>
-          <input type="text" name="location" value="${event?.location || ''}" placeholder="e.g., City Park Field">
+          <input type="text" name="location" value="${escapeHtml(event?.location)}" placeholder="e.g., City Park Field">
         </div>
         <div class="form-group">
           <label>Description</label>
-          <textarea name="description" placeholder="Event details">${event?.description || ''}</textarea>
+          <textarea name="description" placeholder="Event details">${escapeHtml(event?.description)}</textarea>
         </div>
         <div class="form-group">
           <label>Notes</label>
-          <textarea name="notes" placeholder="Additional notes">${event?.notes || ''}</textarea>
+          <textarea name="notes" placeholder="Additional notes">${escapeHtml(event?.notes)}</textarea>
         </div>
-        <button type="submit" class="btn btn-primary">${editId ? 'Update' : 'Create'}</button>
-        <button type="button" class="btn btn-outline" onclick="closeModal()">Cancel</button>
+        <div class="drawer-actions">
+          <button type="submit" class="btn btn-primary">${editId ? 'Update' : 'Create'}</button>
+          <button type="button" class="btn btn-outline" onclick="Drawer.close()">Cancel</button>
+        </div>
       </form>
-    `);
+    `, { onClose });
 
     document.getElementById('eventForm').addEventListener('submit', async (e) => {
       e.preventDefault();
@@ -2257,13 +2326,8 @@ const App = {
           await API.events.create(data);
           this.showToast('Event created', 'success');
         }
-        closeModal();
-        this.renderEvents();
-        // Refresh dashboard calendar if visible
-        if (window.calendar) {
-          const eventsData = await API.events.getAll();
-          window.calendar.setEvents(eventsData.events);
-        }
+        Drawer.close(true);
+        this.refreshView();
       } catch (err) {
         this.showToast(err.message, 'error');
       }
